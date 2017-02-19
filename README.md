@@ -10,3 +10,8 @@ The I1, I2, ..., I6 and J registers are 13 bits wide, and are stored as `u16`.
 # Notes
 
 * Every action you can perform on the `MixMachine` returns a `Result` type.
+
+# ToDo
+
+* Fix poke_register to respect sign bits for I1, ..., I6 and J.
+* Write tests for load operations.

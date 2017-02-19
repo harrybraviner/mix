@@ -60,6 +60,8 @@ impl MixMachine {
 
     // Note: This function does not fail. It is up to the user to make sure that
     //       the value they are passive through is appropriate.
+    //       FIXME - this is bugged. It will NOT currently load the correct sign but for I1, ...,
+    //       I6 or J registers.
     fn poke_register(&mut self, reg: Register, value: u32) -> Result<(), MixMachineErr> {
         match reg {
             Register::RegA  => self.register_A  = value,
@@ -131,12 +133,13 @@ impl MixMachine {
     fn execute_load_op(&mut self, op: &LoadOp) -> Result<(), MixMachineErr> {
         self.compute_effective_address(op.address, op.index_spec).and_then(|effective_address| {
             self.peek_memory(effective_address).and_then(|contents| {
-                // FIXME - how to handle field specifications?
-                if op.negative {
-                    self.poke_register(op.register, MixMachine::negate_value(contents))
-                } else {
-                    self.poke_register(op.register, contents)
-                }
+                MixMachine::truncate_to_field(contents, op.field).and_then(|trunc_cont| {
+                    if op.negative {
+                        self.poke_register(op.register, MixMachine::negate_value(trunc_cont))
+                    } else {
+                        self.poke_register(op.register, trunc_cont)
+                    }
+                })
             })
         })
     }
@@ -185,7 +188,7 @@ mod tests {
     }
 
     #[test]
-    fn truncate_to_field() {
+    fn test_truncate_to_field() {
         assert_eq!(Ok(make_word(false, 1u8, 2u8, 3u8, 4u8, 5u8)),
                    MixMachine::truncate_to_field(make_word(false, 1u8, 2u8, 3u8, 4u8, 5u8), 8*0 + 5));
 

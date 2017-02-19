@@ -1,5 +1,3 @@
-use mix_machine;
-
 pub enum Operation {
     Load(LoadOp),
     Store(StoreOp),
@@ -15,9 +13,11 @@ use mix_machine::Register;
 use mix_machine::Register::*;
 
 pub struct LoadOp {
-    register: Register,
-    field: u8,
-    negative: bool,
+    pub register: Register,
+    pub field: u8,
+    pub negative: bool,
+    pub address: u16,
+    pub index_spec: u8,
 }
 
 impl Operation {
@@ -26,27 +26,27 @@ impl Operation {
         let field_spec: u8 = ((instruction >> 6 ) % 64u32) as u8;
         let index_spec: u8 = ((instruction >> 12) % 64u32) as u8;
         let address: u16   = ((instruction >> 18) % 4096u32) as u16;
-        let sign: i8       = if (instruction >> 30) % 2 == 1 { -1i8 } else { 1i8 };
+        //let sign: i8       = if (instruction >> 30) % 2 == 1 { -1i8 } else { 1i8 };
         
         match op_code {
             // Load instructions
-            8  => Ok(Load(LoadOp {register: RegA,  field: field_spec, negative: false})),
-            15 => Ok(Load(LoadOp {register: RegX,  field: field_spec, negative: false})),
-            9  => Ok(Load(LoadOp {register: RegI1, field: field_spec, negative: false})),
-            10 => Ok(Load(LoadOp {register: RegI2, field: field_spec, negative: false})),
-            11 => Ok(Load(LoadOp {register: RegI3, field: field_spec, negative: false})),
-            12 => Ok(Load(LoadOp {register: RegI4, field: field_spec, negative: false})),
-            13 => Ok(Load(LoadOp {register: RegI5, field: field_spec, negative: false})),
-            14 => Ok(Load(LoadOp {register: RegI6, field: field_spec, negative: false})),
+            8  => Ok(Load(LoadOp {register: RegA,  field: field_spec, negative: false, address: address, index_spec: index_spec})),
+            15 => Ok(Load(LoadOp {register: RegX,  field: field_spec, negative: false, address: address, index_spec: index_spec})),
+            9  => Ok(Load(LoadOp {register: RegI1, field: field_spec, negative: false, address: address, index_spec: index_spec})),
+            10 => Ok(Load(LoadOp {register: RegI2, field: field_spec, negative: false, address: address, index_spec: index_spec})),
+            11 => Ok(Load(LoadOp {register: RegI3, field: field_spec, negative: false, address: address, index_spec: index_spec})),
+            12 => Ok(Load(LoadOp {register: RegI4, field: field_spec, negative: false, address: address, index_spec: index_spec})),
+            13 => Ok(Load(LoadOp {register: RegI5, field: field_spec, negative: false, address: address, index_spec: index_spec})),
+            14 => Ok(Load(LoadOp {register: RegI6, field: field_spec, negative: false, address: address, index_spec: index_spec})),
             // Ok(Load negative instructions
-            16 => Ok(Load(LoadOp {register: RegA,  field: field_spec, negative: true})),
-            23 => Ok(Load(LoadOp {register: RegX,  field: field_spec, negative: true})),
-            17 => Ok(Load(LoadOp {register: RegI1, field: field_spec, negative: true})),
-            18 => Ok(Load(LoadOp {register: RegI2, field: field_spec, negative: true})),
-            19 => Ok(Load(LoadOp {register: RegI3, field: field_spec, negative: true})),
-            20 => Ok(Load(LoadOp {register: RegI4, field: field_spec, negative: true})),
-            21 => Ok(Load(LoadOp {register: RegI5, field: field_spec, negative: true})),
-            22 => Ok(Load(LoadOp {register: RegI6, field: field_spec, negative: true})),
+            16 => Ok(Load(LoadOp {register: RegA,  field: field_spec, negative: true, address: address, index_spec: index_spec})),
+            23 => Ok(Load(LoadOp {register: RegX,  field: field_spec, negative: true, address: address, index_spec: index_spec})),
+            17 => Ok(Load(LoadOp {register: RegI1, field: field_spec, negative: true, address: address, index_spec: index_spec})),
+            18 => Ok(Load(LoadOp {register: RegI2, field: field_spec, negative: true, address: address, index_spec: index_spec})),
+            19 => Ok(Load(LoadOp {register: RegI3, field: field_spec, negative: true, address: address, index_spec: index_spec})),
+            20 => Ok(Load(LoadOp {register: RegI4, field: field_spec, negative: true, address: address, index_spec: index_spec})),
+            21 => Ok(Load(LoadOp {register: RegI5, field: field_spec, negative: true, address: address, index_spec: index_spec})),
+            22 => Ok(Load(LoadOp {register: RegI6, field: field_spec, negative: true, address: address, index_spec: index_spec})),
             // Unknown (or not implemented)
             _  => Err(())
         }

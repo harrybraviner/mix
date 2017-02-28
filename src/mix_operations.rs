@@ -38,7 +38,7 @@ impl Operation {
             12 => Ok(Load(LoadOp {register: RegI4, field: field_spec, negative: false, address: address, index_spec: index_spec})),
             13 => Ok(Load(LoadOp {register: RegI5, field: field_spec, negative: false, address: address, index_spec: index_spec})),
             14 => Ok(Load(LoadOp {register: RegI6, field: field_spec, negative: false, address: address, index_spec: index_spec})),
-            // Ok(Load negative instructions
+            // Load negative instructions
             16 => Ok(Load(LoadOp {register: RegA,  field: field_spec, negative: true, address: address, index_spec: index_spec})),
             23 => Ok(Load(LoadOp {register: RegX,  field: field_spec, negative: true, address: address, index_spec: index_spec})),
             17 => Ok(Load(LoadOp {register: RegI1, field: field_spec, negative: true, address: address, index_spec: index_spec})),
@@ -50,6 +50,15 @@ impl Operation {
             // Unknown (or not implemented)
             _  => Err(())
         }
+    }
+
+    pub fn make_instruction(positive: bool, address: u16, index_spec: u8, field_spec: u8, op_code: u8) -> u32 {
+        if address >= (1u16 << 12) { panic!("Invalid address.") }
+        if index_spec >= (1u8 << 6) { panic!("Invalid index specification.") }
+        if field_spec >= (1u8 << 6) { panic!("Invalid field specification.") }
+        if op_code >= (1u8 << 6) { panic!("Invalid op code.") }
+        let sgn_bit = if positive { 0u32 } else { 1u32 << 30 };
+        sgn_bit + ((address as u32) << 18) + ((index_spec as u32) << 12) + ((field_spec as u32) << 6) + (op_code as u32)
     }
 }
 

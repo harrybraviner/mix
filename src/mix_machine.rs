@@ -39,7 +39,7 @@ impl MixMachine {
         }
     }
 
-    fn poke_memory(&mut self, address: u16, value: u32) -> Result<(), MixMachineErr> {
+    pub fn poke_memory(&mut self, address: u16, value: u32) -> Result<(), MixMachineErr> {
         if address >= MEM_SIZE {
             Err(MixMachineErr{message: format!("Attempt to access invalid memory address {}.", address)})
         } else if value > MAX_WORD_VALUE {
@@ -50,7 +50,7 @@ impl MixMachine {
         }
     }
 
-    fn peek_memory(&self, address: u16) -> Result<u32, MixMachineErr> {
+    pub fn peek_memory(&self, address: u16) -> Result<u32, MixMachineErr> {
         if address >= MEM_SIZE {
             Err(MixMachineErr{message: format!("Attempt to access invalid memory address {}.", address)})
         } else {
@@ -80,8 +80,8 @@ impl MixMachine {
             Register::RegA  => self.register_A,
             Register::RegX  => self.register_X,
             Register::RegI1 => MixMachine::reg16_to_reg32(self.register_I1),
-            Register::RegI2 => MixMachine::reg16_to_reg32(self.register_I1),
-            Register::RegI3 => MixMachine::reg16_to_reg32(self.register_I2),
+            Register::RegI2 => MixMachine::reg16_to_reg32(self.register_I2),
+            Register::RegI3 => MixMachine::reg16_to_reg32(self.register_I3),
             Register::RegI4 => MixMachine::reg16_to_reg32(self.register_I4),
             Register::RegI5 => MixMachine::reg16_to_reg32(self.register_I5),
             Register::RegI6 => MixMachine::reg16_to_reg32(self.register_I6),
@@ -101,6 +101,7 @@ impl MixMachine {
         ((reg16 as u32) % (1u32 << 12)) + (((reg16 as u32) & (1u32 << 12)) << 18)
     }
 
+    // FIXME - alter this to allow for negative base addresses
     fn compute_effective_address(&self, address: u16, index_spec: u8) -> Result<u16, MixMachineErr> {
         match index_spec {
             0 => Ok(address),
@@ -110,7 +111,7 @@ impl MixMachine {
             4 => self.peek_register(Register::RegI4).map(|x| (x as u16) + address),
             5 => self.peek_register(Register::RegI5).map(|x| (x as u16) + address),
             6 => self.peek_register(Register::RegI6).map(|x| (x as u16) + address),
-            _ => Err(MixMachineErr{message: format!("Invalid index_spec for comuting effective address: {}", index_spec)}),
+            _ => Err(MixMachineErr{message: format!("Invalid index_spec for computing effective address: {}", index_spec)}),
         }
     }
 
@@ -128,12 +129,12 @@ impl MixMachine {
         } else if left > right {
             Err(MixMachineErr{message: format!("Field specification {} has L={}, R={}. Must have L<=R.", field, left, right)})
         } else {
-            let (left_byte, sign) = if left == 0 { (1, 1u32<<30) } else { (left, 0u32) };
+            let (left_byte, sign) = if left == 0 { (1, value & (1u32<<30)) } else { (left, 0u32) };
             let right_byte = if right == 0 { 1 } else { right };
             let bytes_out = if right == 0 {
                 0u32
             } else {
-                let bytes_in = value & ((1<<30) - 1);
+                let bytes_in = value % (1u32<<30);
                 (bytes_in >> (6*(5 - right_byte))) % (1 << (6*(right_byte - left_byte + 1)))
             };
             Ok(bytes_out + sign)
@@ -169,7 +170,10 @@ impl MixMachine {
             match op {
                 Load(op) => self.execute_load_op(&op),
                 _        => panic!("Not implemented."),
-            }
+            }.and_then(|_| {
+                self.program_counter = self.program_counter + 1;
+                Ok(())
+            })
         })
     }
 }

@@ -13,5 +13,4 @@ The I1, I2, ..., I6 and J registers are 13 bits wide, and are stored as `u16`.
 
 # ToDo
 
-* Fix poke_register to respect sign bits for I1, ..., I6 and J.
 * Write tests for load operations.

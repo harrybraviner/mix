@@ -6,7 +6,7 @@ const MEM_SIZE: u16 = 4000;
 
 #[allow(non_snake_case)]    // Allow the register names to conform to Knuth's capitalisation
 pub struct MixMachine {
-    register_A: u32,    // N.B.: Unlike true MIX, we don't allow both -0 and +0
+    register_A: u32,
     register_X: u32,
     register_I1: u16,
     register_I2: u16,
@@ -60,19 +60,17 @@ impl MixMachine {
 
     // Note: This function does not fail. It is up to the user to make sure that
     //       the value they are passive through is appropriate.
-    //       FIXME - this is bugged. It will NOT currently load the correct sign but for I1, ...,
-    //       I6 or J registers.
     fn poke_register(&mut self, reg: Register, value: u32) -> Result<(), MixMachineErr> {
         match reg {
             Register::RegA  => self.register_A  = value,
             Register::RegX  => self.register_X  = value,
-            Register::RegI1 => self.register_I1 = value as u16,
-            Register::RegI2 => self.register_I2 = value as u16,
-            Register::RegI3 => self.register_I3 = value as u16,
-            Register::RegI4 => self.register_I4 = value as u16,
-            Register::RegI5 => self.register_I5 = value as u16,
-            Register::RegI6 => self.register_I6 = value as u16,
-            Register::RegJ  => self.register_J  = value as u16,
+            Register::RegI1 => self.register_I1 = MixMachine::reg32_to_reg16(value),
+            Register::RegI2 => self.register_I2 = MixMachine::reg32_to_reg16(value),
+            Register::RegI3 => self.register_I3 = MixMachine::reg32_to_reg16(value),
+            Register::RegI4 => self.register_I4 = MixMachine::reg32_to_reg16(value),
+            Register::RegI5 => self.register_I5 = MixMachine::reg32_to_reg16(value),
+            Register::RegI6 => self.register_I6 = MixMachine::reg32_to_reg16(value),
+            Register::RegJ  => self.register_J  = MixMachine::reg32_to_reg16(value),
         };
         Ok(())
     }
@@ -81,14 +79,26 @@ impl MixMachine {
         Ok(match reg {
             Register::RegA  => self.register_A,
             Register::RegX  => self.register_X,
-            Register::RegI1 => self.register_I1 as u32,
-            Register::RegI2 => self.register_I1 as u32,
-            Register::RegI3 => self.register_I2 as u32,
-            Register::RegI4 => self.register_I4 as u32,
-            Register::RegI5 => self.register_I5 as u32,
-            Register::RegI6 => self.register_I6 as u32,
-            Register::RegJ  => self.register_J  as u32,
+            Register::RegI1 => MixMachine::reg16_to_reg32(self.register_I1),
+            Register::RegI2 => MixMachine::reg16_to_reg32(self.register_I1),
+            Register::RegI3 => MixMachine::reg16_to_reg32(self.register_I2),
+            Register::RegI4 => MixMachine::reg16_to_reg32(self.register_I4),
+            Register::RegI5 => MixMachine::reg16_to_reg32(self.register_I5),
+            Register::RegI6 => MixMachine::reg16_to_reg32(self.register_I6),
+            Register::RegJ  => MixMachine::reg16_to_reg32(self.register_J ),
         })
+    }
+
+    // For if we want to load a register from a memory value
+    // FIXME - this should return some sort of error if bytes 1, 2, and 3 of reg32 are not all zero
+    fn reg32_to_reg16 (reg32: u32) -> u16 {
+        ((reg32 >> 18) + (reg32 % (1u32 << 12))) as u16
+    }
+
+    // For if we want to take a reg16 (I1, ..., I6 or J) and put it into
+    // memory or a reg32.
+    fn reg16_to_reg32 (reg16: u16) -> u32 {
+        ((reg16 as u32) % (1u32 << 12)) + (((reg16 as u32) & (1u32 << 12)) << 18)
     }
 
     fn compute_effective_address(&self, address: u16, index_spec: u8) -> Result<u16, MixMachineErr> {
@@ -222,4 +232,17 @@ mod tests {
         assert_eq!(Ok(make_word(true, 0u8, 0u8, 0u8, 0u8, 1u8)),
                    MixMachine::truncate_to_field(make_word(false,  1u8, 2u8, 3u8, 4u8, 5u8), 8*1 + 1));
     }
+
+    #[test]
+    fn test_reg32_to_reg16() {
+        assert_eq!(MixMachine::reg32_to_reg16(make_word(true,  0u8, 0u8, 0u8, 2u8, 5u8)), (5u16 + (2u16 << 6) + (0u16 << 12)));
+        assert_eq!(MixMachine::reg32_to_reg16(make_word(false, 0u8, 0u8, 0u8, 2u8, 5u8)), (5u16 + (2u16 << 6) + (1u16 << 12)));
+    }
+
+    #[test]
+    fn test_reg16_to_reg32() {
+        assert_eq!((5u16 + (2u16 << 6) + (0u16 << 12)), MixMachine::reg32_to_reg16(make_word(true,  0u8, 0u8, 0u8, 2u8, 5u8)));
+        assert_eq!((5u16 + (2u16 << 6) + (1u16 << 12)), MixMachine::reg32_to_reg16(make_word(false, 0u8, 0u8, 0u8, 2u8, 5u8)));
+    }
+        
 }

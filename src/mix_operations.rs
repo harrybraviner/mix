@@ -16,7 +16,7 @@ pub struct LoadOp {
     pub register: Register,
     pub field: u8,
     pub negative: bool,
-    pub address: u16,
+    pub address: i16,   // Note that the address of the op may be negative, and -0 and +0 do the same thing
     pub index_spec: u8,
 }
 
@@ -25,7 +25,7 @@ impl Operation {
         let op_code: u8    = ( instruction        % 64u32) as u8;
         let field_spec: u8 = ((instruction >> 6 ) % 64u32) as u8;
         let index_spec: u8 = ((instruction >> 12) % 64u32) as u8;
-        let address: u16   = ((instruction >> 18) % 4096u32) as u16;
+        let address: i16   = ((instruction >> 18) % 4096u32) as i16 * (if instruction & (1u32 << 30) != 0 { -1i16 } else { 1i16 });
         //let sign: i8       = if (instruction >> 30) % 2 == 1 { -1i8 } else { 1i8 };
         
         match op_code {

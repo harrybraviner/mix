@@ -49,3 +49,24 @@ fn test_load_negative_op(){
     assert_eq!(mix_machine.peek_register(Register::RegI3), Ok(1000u32 + (1u32 << 30)));
     assert_eq!(mix_machine.peek_register(Register::RegX),  Ok(0u32 + (1u32 << 30)));
 }
+
+
+#[test]
+fn test_load_op_with_negative_address(){
+    let mut mix_machine = MixMachine::new();
+    assert_eq!(mix_machine.poke_memory(0u16, Operation::make_instruction(true,  3u16,  0u8, 5u8, 11u8)), Ok(())); // LDI3
+    assert_eq!(mix_machine.poke_memory(1u16, Operation::make_instruction(false, 10u16, 3u8, 5u8, 15u8)), Ok(())); // LDX
+    assert_eq!(mix_machine.poke_memory(3u16, 1000u32), Ok(()));                                                   // value to load into I3
+    assert_eq!(mix_machine.poke_memory(990u16, ((1u32<<8) + 345u32)), Ok(()));                                    // value to load into X
+    
+    assert_eq!(mix_machine.peek_register(Register::RegI3), Ok(0u32));
+    assert_eq!(mix_machine.peek_register(Register::RegX),  Ok(0u32));
+    
+    assert_eq!(mix_machine.step(), Ok(()));
+    assert_eq!(mix_machine.peek_register(Register::RegI3), Ok(1000u32));
+    assert_eq!(mix_machine.peek_register(Register::RegX),  Ok(0u32));
+    
+    assert_eq!(mix_machine.step(), Ok(()));
+    assert_eq!(mix_machine.peek_register(Register::RegI3), Ok(1000u32));
+    assert_eq!(mix_machine.peek_register(Register::RegX),  Ok((1u32<<8) + 345u32));
+}

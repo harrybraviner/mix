@@ -102,17 +102,38 @@ impl MixMachine {
     }
 
     // FIXME - alter this to allow for negative base addresses
-    fn compute_effective_address(&self, address: u16, index_spec: u8) -> Result<u16, MixMachineErr> {
-        match index_spec {
-            0 => Ok(address),
-            1 => self.peek_register(Register::RegI1).map(|x| (x as u16) + address),
-            2 => self.peek_register(Register::RegI2).map(|x| (x as u16) + address),
-            3 => self.peek_register(Register::RegI3).map(|x| (x as u16) + address),
-            4 => self.peek_register(Register::RegI4).map(|x| (x as u16) + address),
-            5 => self.peek_register(Register::RegI5).map(|x| (x as u16) + address),
-            6 => self.peek_register(Register::RegI6).map(|x| (x as u16) + address),
-            _ => Err(MixMachineErr{message: format!("Invalid index_spec for computing effective address: {}", index_spec)}),
-        }
+    fn compute_effective_address(&self, address: i16, index_spec: u8) -> Result<u16, MixMachineErr> {
+        let index_offset =
+            match index_spec {
+                0 => Ok(0u8),
+                1 => self.peek_register(Register::RegI1).map(|x| (x as u16) + address),
+                2 => self.peek_register(Register::RegI2).map(|x| (x as u16) + address),
+                3 => self.peek_register(Register::RegI3).map(|x| (x as u16) + address),
+                4 => self.peek_register(Register::RegI4).map(|x| (x as u16) + address),
+                5 => self.peek_register(Register::RegI5).map(|x| (x as u16) + address),
+                6 => self.peek_register(Register::RegI6).map(|x| (x as u16) + address),
+                _ => Err(MixMachineErr{message: format!("Invalid index_spec for computing effective address: {}", index_spec)}),
+            };
+        let index_offset = index_offset.map(|offset| { if offset & (1 << 12) != 0 { -(offset % (1<<12)) as i16 } else {offset as i16} });
+        // FIXME - finish writing this
+        let effective_address =
+            match index_spec {
+                0 => Ok(address),
+                1 => self.peek_register(Register::RegI1).map(|x| (x as u16) + address),
+                2 => self.peek_register(Register::RegI2).map(|x| (x as u16) + address),
+                3 => self.peek_register(Register::RegI3).map(|x| (x as u16) + address),
+                4 => self.peek_register(Register::RegI4).map(|x| (x as u16) + address),
+                5 => self.peek_register(Register::RegI5).map(|x| (x as u16) + address),
+                6 => self.peek_register(Register::RegI6).map(|x| (x as u16) + address),
+                _ => Err(MixMachineErr{message: format!("Invalid index_spec for computing effective address: {}", index_spec)}),
+            };
+        effective_address.and_then(|addr| {
+            if addr >= 0 {
+                Ok(addr as u16)
+            } else {
+                Err(MixMachineErr{message: format!("Computed negative effective address: {}", addr)})
+            }
+        })
     }
 
     fn negate_value(value: u32) -> u32 {

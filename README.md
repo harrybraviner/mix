@@ -13,5 +13,6 @@ The I1, I2, ..., I6 and J registers are 13 bits wide, and are stored as `u16`.
 
 # ToDo
 
-* Write tests for load operation with non-trivial field specs.
+* Finish fixing compute_effective_address.
 * Correct to allow negative bases and offsets in relative addressing. Write load tests.
+* Write tests for load operation with non-trivial field specs.

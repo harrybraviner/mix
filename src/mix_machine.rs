@@ -62,17 +62,17 @@ impl MixMachine {
     //       the value they are passive through is appropriate.
     fn poke_register(&mut self, reg: Register, value: u32) -> Result<(), MixMachineErr> {
         match reg {
-            Register::RegA  => self.register_A  = value,
-            Register::RegX  => self.register_X  = value,
-            Register::RegI1 => self.register_I1 = MixMachine::reg32_to_reg16(value),
-            Register::RegI2 => self.register_I2 = MixMachine::reg32_to_reg16(value),
-            Register::RegI3 => self.register_I3 = MixMachine::reg32_to_reg16(value),
-            Register::RegI4 => self.register_I4 = MixMachine::reg32_to_reg16(value),
-            Register::RegI5 => self.register_I5 = MixMachine::reg32_to_reg16(value),
-            Register::RegI6 => self.register_I6 = MixMachine::reg32_to_reg16(value),
-            Register::RegJ  => self.register_J  = MixMachine::reg32_to_reg16(value),
-        };
-        Ok(())
+            Register::RegA  => {self.register_A = value; Ok(())},
+            Register::RegX  => {self.register_X = value; Ok(())},
+            Register::RegI1 => MixMachine::reg32_to_reg16(value).and_then(|x| {self.register_I1 = x; Ok(())}),
+            Register::RegI2 => MixMachine::reg32_to_reg16(value).and_then(|x| {self.register_I2 = x; Ok(())}),
+            Register::RegI3 => MixMachine::reg32_to_reg16(value).and_then(|x| {self.register_I3 = x; Ok(())}),
+            Register::RegI4 => MixMachine::reg32_to_reg16(value).and_then(|x| {self.register_I4 = x; Ok(())}),
+            Register::RegI5 => MixMachine::reg32_to_reg16(value).and_then(|x| {self.register_I5 = x; Ok(())}),
+            Register::RegI6 => MixMachine::reg32_to_reg16(value).and_then(|x| {self.register_I6 = x; Ok(())}),
+            Register::RegJ  => MixMachine::reg32_to_reg16(value).and_then(|x| {self.register_J = x;  Ok(())}),
+
+        }
     }
 
     pub fn peek_register(&self, reg: Register) -> Result<u32, MixMachineErr> {
@@ -90,9 +90,12 @@ impl MixMachine {
     }
 
     // For if we want to load a register from a memory value
-    // FIXME - this should return some sort of error if bytes 1, 2, and 3 of reg32 are not all zero
-    fn reg32_to_reg16 (reg32: u32) -> u16 {
-        ((reg32 >> 18) + (reg32 % (1u32 << 12))) as u16
+    fn reg32_to_reg16 (reg32: u32) -> Result<u16, MixMachineErr> {
+        if (reg32 >> 12) % (1u32 << 18) != 0u32 {
+            Err(MixMachineErr{message: format!("Attempt to poke 16 bit register with 32-bit value were bytes 1, 2 and 3 are not all zero.")})
+        } else {
+            Ok(((reg32 >> 18) + (reg32 % (1u32 << 12))) as u16)
+        }
     }
 
     // For if we want to take a reg16 (I1, ..., I6 or J) and put it into
@@ -101,30 +104,27 @@ impl MixMachine {
         ((reg16 as u32) % (1u32 << 12)) + (((reg16 as u32) & (1u32 << 12)) << 18)
     }
 
+    // Convert the u32 mix storage format (which supports +/-0) into a signed u32
+    // This is helpful for address offset calculations
+    fn reg32_to_i32 (reg32: u32) -> i32 {
+        if reg32 & (1u32 << 30) == 0 {
+            (reg32 % (1u32 << 30)) as i32
+        } else {
+            -1i32*((reg32 % (1u32 << 30)) as i32)
+        }
+    }
+
     // FIXME - alter this to allow for negative base addresses
     fn compute_effective_address(&self, address: i16, index_spec: u8) -> Result<u16, MixMachineErr> {
-        let index_offset =
-            match index_spec {
-                0 => Ok(0u8),
-                1 => self.peek_register(Register::RegI1).map(|x| (x as u16) + address),
-                2 => self.peek_register(Register::RegI2).map(|x| (x as u16) + address),
-                3 => self.peek_register(Register::RegI3).map(|x| (x as u16) + address),
-                4 => self.peek_register(Register::RegI4).map(|x| (x as u16) + address),
-                5 => self.peek_register(Register::RegI5).map(|x| (x as u16) + address),
-                6 => self.peek_register(Register::RegI6).map(|x| (x as u16) + address),
-                _ => Err(MixMachineErr{message: format!("Invalid index_spec for computing effective address: {}", index_spec)}),
-            };
-        let index_offset = index_offset.map(|offset| { if offset & (1 << 12) != 0 { -(offset % (1<<12)) as i16 } else {offset as i16} });
-        // FIXME - finish writing this
         let effective_address =
             match index_spec {
                 0 => Ok(address),
-                1 => self.peek_register(Register::RegI1).map(|x| (x as u16) + address),
-                2 => self.peek_register(Register::RegI2).map(|x| (x as u16) + address),
-                3 => self.peek_register(Register::RegI3).map(|x| (x as u16) + address),
-                4 => self.peek_register(Register::RegI4).map(|x| (x as u16) + address),
-                5 => self.peek_register(Register::RegI5).map(|x| (x as u16) + address),
-                6 => self.peek_register(Register::RegI6).map(|x| (x as u16) + address),
+                1 => self.peek_register(Register::RegI1).map(|x| (MixMachine::reg32_to_i32(x) as i16) + address),
+                2 => self.peek_register(Register::RegI2).map(|x| (MixMachine::reg32_to_i32(x) as i16) + address),
+                3 => self.peek_register(Register::RegI3).map(|x| (MixMachine::reg32_to_i32(x) as i16) + address),
+                4 => self.peek_register(Register::RegI4).map(|x| (MixMachine::reg32_to_i32(x) as i16) + address),
+                5 => self.peek_register(Register::RegI5).map(|x| (MixMachine::reg32_to_i32(x) as i16) + address),
+                6 => self.peek_register(Register::RegI6).map(|x| (MixMachine::reg32_to_i32(x) as i16) + address),
                 _ => Err(MixMachineErr{message: format!("Invalid index_spec for computing effective address: {}", index_spec)}),
             };
         effective_address.and_then(|addr| {
@@ -260,14 +260,16 @@ mod tests {
 
     #[test]
     fn test_reg32_to_reg16() {
-        assert_eq!(MixMachine::reg32_to_reg16(make_word(true,  0u8, 0u8, 0u8, 2u8, 5u8)), (5u16 + (2u16 << 6) + (0u16 << 12)));
-        assert_eq!(MixMachine::reg32_to_reg16(make_word(false, 0u8, 0u8, 0u8, 2u8, 5u8)), (5u16 + (2u16 << 6) + (1u16 << 12)));
-    }
-
-    #[test]
-    fn test_reg16_to_reg32() {
-        assert_eq!((5u16 + (2u16 << 6) + (0u16 << 12)), MixMachine::reg32_to_reg16(make_word(true,  0u8, 0u8, 0u8, 2u8, 5u8)));
-        assert_eq!((5u16 + (2u16 << 6) + (1u16 << 12)), MixMachine::reg32_to_reg16(make_word(false, 0u8, 0u8, 0u8, 2u8, 5u8)));
+        assert_eq!(MixMachine::reg32_to_reg16(make_word(true,  0u8, 0u8, 0u8, 2u8, 5u8)), Ok((5u16 + (2u16 << 6) + (0u16 << 12))));
+        assert_eq!(MixMachine::reg32_to_reg16(make_word(false, 0u8, 0u8, 0u8, 2u8, 5u8)), Ok((5u16 + (2u16 << 6) + (1u16 << 12))));
     }
         
+
+    #[test]
+    fn test_reg32_to_i32() {
+        assert_eq!(MixMachine::reg32_to_i32(make_word(true, 0u8, 0u8, 0u8, 0u8, 1u8)), 1i32);
+        assert_eq!(MixMachine::reg32_to_i32(make_word(true, 1u8, 0u8, 0u8, 0u8, 10u8)), ((1i32 << 24) + 10i32));
+        assert_eq!(MixMachine::reg32_to_i32(make_word(false, 0u8, 0u8, 0u8, 0u8, 1u8)), -1i32);
+        assert_eq!(MixMachine::reg32_to_i32(make_word(false, 1u8, 0u8, 0u8, 0u8, 10u8)), -1i32*((1i32 << 24) + 10i32));
+    }
 }

@@ -26,7 +26,6 @@ impl Operation {
         let field_spec: u8 = ((instruction >> 6 ) % 64u32) as u8;
         let index_spec: u8 = ((instruction >> 12) % 64u32) as u8;
         let address: i16   = ((instruction >> 18) % 4096u32) as i16 * (if instruction & (1u32 << 30) != 0 { -1i16 } else { 1i16 });
-        //let sign: i8       = if (instruction >> 30) % 2 == 1 { -1i8 } else { 1i8 };
         
         match op_code {
             // Load instructions

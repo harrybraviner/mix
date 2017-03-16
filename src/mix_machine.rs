@@ -50,6 +50,10 @@ impl MixMachine {
         }
     }
 
+    pub fn poke_address_to_memory(&mut self, address: u16, value: i16) -> Result<(), MixMachineErr> {
+        self.poke_memory(address, MixMachine::i32_to_reg32(value as i32))
+    }
+
     pub fn peek_memory(&self, address: u16) -> Result<u32, MixMachineErr> {
         if address >= MEM_SIZE {
             Err(MixMachineErr{message: format!("Attempt to access invalid memory address {}.", address)})
@@ -114,7 +118,14 @@ impl MixMachine {
         }
     }
 
-    // FIXME - alter this to allow for negative base addresses
+    pub fn i32_to_reg32 (value: i32) -> u32 {
+        if value >= 0 {
+            value as u32
+        } else {
+            value.abs() as u32 + (1u32 << 30)
+        }
+    }
+
     fn compute_effective_address(&self, address: i16, index_spec: u8) -> Result<u16, MixMachineErr> {
         let effective_address =
             match index_spec {
@@ -271,5 +282,13 @@ mod tests {
         assert_eq!(MixMachine::reg32_to_i32(make_word(true, 1u8, 0u8, 0u8, 0u8, 10u8)), ((1i32 << 24) + 10i32));
         assert_eq!(MixMachine::reg32_to_i32(make_word(false, 0u8, 0u8, 0u8, 0u8, 1u8)), -1i32);
         assert_eq!(MixMachine::reg32_to_i32(make_word(false, 1u8, 0u8, 0u8, 0u8, 10u8)), -1i32*((1i32 << 24) + 10i32));
+    }
+
+    #[test]
+    fn test_i32_to_reg32() {
+        assert_eq!(MixMachine::i32_to_reg32(0i32), 0u32);
+        assert_eq!(MixMachine::i32_to_reg32(10i32), 10u32);
+        assert_eq!(MixMachine::i32_to_reg32((1i32 << 30) - 1i32), (1u32 << 30) - 1u32);
+        assert_eq!(MixMachine::i32_to_reg32(-1i32), (1u32 << 30) + 1u32);
     }
 }

@@ -1,5 +1,6 @@
 extern crate mix;
 
+use std::cmp;
 use mix::mix_machine::*;
 use mix::mix_operations::*;
 
@@ -13,9 +14,11 @@ fn test_load_op(){
     assert_eq!(mix_machine.peek_register(Register::RegA), Ok(1234u32));
 }
 
-fn test_load_with_offset(reg_to_load: Register, reg_for_offset: Option<Register>,
-                         base_address: i16, offset_address: i16, value_to_load: u32,
-                         negative_load: bool) {
+// Function to generate a test for given registers.
+// Allows more complete test coverage.
+fn test_load_with_offset_and_field_spec(reg_to_load: Register, reg_for_offset: Option<Register>,
+                                        base_address: i16, offset_address: i16, value_to_load: u32,
+                                        negative_load: bool, field_spec: u8) {
     let mut mix_machine = MixMachine::new();
     let opcode_2 = match reg_to_load {
         Register::RegA => 8,
@@ -50,11 +53,11 @@ fn test_load_with_offset(reg_to_load: Register, reg_for_offset: Option<Register>
     // Load the offset into an index register
     assert_eq!(mix_machine.poke_memory(0u16, Operation::make_instruction(true, 2u16, 0u8, 5u8, opcode_1)), Ok(()));
     // Load the value at the absolute address into a register
-    assert_eq!(mix_machine.poke_memory(1u16, Operation::make_instruction(base_address_positive, base_address_abs, index_spec_2, 5u8, opcode_2)), Ok(()));
+    assert_eq!(mix_machine.poke_memory(1u16, Operation::make_instruction(base_address_positive, base_address_abs, index_spec_2, field_spec, opcode_2)), Ok(()));
     // The actual value that will be loaded into the index register
     assert_eq!(mix_machine.poke_address_to_memory(2u16, offset_address), Ok(()));
     // The actual value that will be loaded into the target register
-    let target_address = if (reg_for_offset.is_some()) {
+    let target_address = if reg_for_offset.is_some() {
         base_address + offset_address
     } else {
         base_address
@@ -68,11 +71,28 @@ fn test_load_with_offset(reg_to_load: Register, reg_for_offset: Option<Register>
     });
     // Execute the load to the main register
     assert_eq!(mix_machine.step(), Ok(()));
-    let expected_output = if negative_load { value_to_load ^ (1u32 << 30) } else { value_to_load };
+    let expected_output = {
+        let spec_l = field_spec / 8u8; let spec_r = field_spec % 8u8;
+        let sign_bit = if spec_l == 0u8 { value_to_load & (1u32 << 30) } else { 0u32 /* Positive */ };
+        let mask = if spec_r == 0u8 {
+            0u32
+        } else {
+            ((1u32 << (spec_r - cmp::max(1u8, spec_l) + 1)*6) - 1u32) << (5 - spec_r)*6
+        };
+        let field_masked_value = ((mask & value_to_load) >> (5 - spec_r)*6) + sign_bit;
+        // Done with the field-spec bit - but were we told to negate the value we're loading?
+        if negative_load { field_masked_value ^ (1u32 << 30) } else { field_masked_value } };
     assert_eq!(mix_machine.peek_register(reg_to_load), Ok(expected_output));
 
 
 }
+
+fn test_load_with_offset(reg_to_load: Register, reg_for_offset: Option<Register>,
+                         base_address: i16, offset_address: i16, value_to_load: u32,
+                         negative_load: bool) {
+    test_load_with_offset_and_field_spec(reg_to_load, reg_for_offset, base_address, offset_address, value_to_load, negative_load, 5u8)
+}
+
 
 #[test]
 fn test_load_op_with_no_offset() {
@@ -113,10 +133,49 @@ fn test_for_all_registers() {
             for base_address in &base_address_set {
                 for offset_address in &offset_address_set {
                     for negative_load in vec![false, true] {
-                        if ((reg_for_index.is_some() && (base_address + offset_address > 0i16))
-                            || (*base_address > 0i16)){
+                        if (reg_for_index.is_some() && (base_address + offset_address > 0i16))
+                           || (*base_address > 0i16){
                             print!("Base: {}\nOffset: {}\n\n", base_address, offset_address);
                             test_load_with_offset(*reg_to_load, *reg_for_index, *base_address, *offset_address, value_to_load, negative_load);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+ #[test]
+fn test_load_with_truncated_field() {
+    test_load_with_offset_and_field_spec(Register::RegX, None, 10i16, 20i16, 1234u32 + (1u32 << 30), false, 8*0 + 3);
+    test_load_with_offset_and_field_spec(Register::RegX, None, 10i16, 20i16, 1234u32 + (1u32 << 30), false, 8*3 + 5);
+}
+
+#[test]
+fn test_for_all_registers_and_field_specs() {
+    let value_to_load = 1234u32;
+    let reg_set_for_index = vec![None, Some(Register::RegI1), Some(Register::RegI2), Some(Register::RegI3),
+                                       Some(Register::RegI4), Some(Register::RegI5), Some(Register::RegI6)];
+    let reg_set_for_load = vec![Register::RegX,  Register::RegA,  Register::RegI1, Register::RegI2,
+                                Register::RegI3, Register::RegI4, Register::RegI5, Register::RegI6];
+    let field_spec_vals = vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8];
+    let base_address_set   = vec![0i16, 100i16, -100i16];
+    let offset_address_set = vec![0i16, 120i16, -20i16];
+    for reg_for_index in &reg_set_for_index {
+        for reg_to_load in &reg_set_for_load {
+            for base_address in &base_address_set {
+                for offset_address in &offset_address_set {
+                    for negative_load in vec![false, true] {
+                        if (reg_for_index.is_some() && (base_address + offset_address > 0i16))
+                           || (*base_address > 0i16){
+                               for spec_l in &field_spec_vals {
+                                   for spec_r in &field_spec_vals {
+                                       if spec_r >= spec_l {
+                                            print!("Base: {}\nOffset: {}\n\n", base_address, offset_address);
+                                            test_load_with_offset_and_field_spec(*reg_to_load, *reg_for_index, *base_address, *offset_address, value_to_load, negative_load, 8*spec_l + spec_r);
+                                       }
+                                   }
+                               }
                         }
                     }
                 }

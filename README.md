@@ -13,4 +13,11 @@ The I1, I2, ..., I6 and J registers are 13 bits wide, and are stored as `u16`.
 
 # ToDo
 
+* Add tests for store operations.
+* Add tests for arithmetic operations.
+* Add address transfer operations.
+* Add comparison operations.
+* Add jump operations.
 * Refactor code s.t. the register branches are less biolerplate.
+* Refactor the 'helper functions' to convert from 5 byte to 2 byte registers etc. into separate helper classes.
+* Add print functionality for the registers? As a helper function?

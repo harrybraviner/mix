@@ -64,7 +64,7 @@ impl MixMachine {
 
     // Note: This function does not fail. It is up to the user to make sure that
     //       the value they are passive through is appropriate.
-    fn poke_register(&mut self, reg: Register, value: u32) -> Result<(), MixMachineErr> {
+    pub fn poke_register(&mut self, reg: Register, value: u32) -> Result<(), MixMachineErr> {
         match reg {
             Register::RegA  => {self.register_A = value; Ok(())},
             Register::RegX  => {self.register_X = value; Ok(())},

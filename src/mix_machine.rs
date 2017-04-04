@@ -173,6 +173,31 @@ impl MixMachine {
         }
     }
 
+    fn embed_from_field(value_to_write: u32, value_to_overwrite: u32, field: u8) -> Result<u32, MixMachineErr> {
+        let left  = field / 8;
+        let right = field % 8;
+        if right > 5 {
+            Err(MixMachineErr{message: format!("Field specification {} has R={}. Must have R<=5.", field, right)})
+        } else if left > 5 {
+            Err(MixMachineErr{message: format!("Field specification {} has L={}. Must have L<=5.", field, left)})
+        } else if left > right {
+            Err(MixMachineErr{message: format!("Field specification {} has L={}, R={}. Must have L<=R.", field, left, right)})
+        } else {
+            let (left_byte, sign) = if left == 0 { (1, value_to_write & (1u32<<30)) } else { (left, value_to_overwrite & (1u32 << 30)) };
+            let right_byte = if right == 0 { 1 } else { right };
+            let bytes_out = if right == 0 {
+                // In this case we only want the sign bit to be overwritten, so keep everything else
+                value_to_overwrite & ((1u32 << 30) - 1)
+            } else {
+                let bits_to_overwrite = ((1u32 << 6*(right_byte - left_byte + 1)) - 1) << 6*(right_byte - 5);
+                let masked_original = value_to_overwrite & (((1u32 << 30) - 1) ^ bits_to_overwrite);
+                let masked_new = (value_to_write & ((1u32 << 6*(right_byte - left_byte + 1)) - 1)) << 6*(right_byte - 5);
+                masked_original + masked_new
+            };
+            Ok(bytes_out + sign)
+        }
+    }
+
     fn execute_load_op(&mut self, op: &LoadOp) -> Result<(), MixMachineErr> {
         self.compute_effective_address(op.address, op.index_spec).and_then(|effective_address| {
             self.peek_memory(effective_address).and_then(|contents| {
@@ -280,6 +305,14 @@ mod tests {
 
         assert_eq!(Ok(make_word(true, 0u8, 0u8, 0u8, 0u8, 1u8)),
                    MixMachine::truncate_to_field(make_word(false,  1u8, 2u8, 3u8, 4u8, 5u8), 8*1 + 1));
+    }
+
+    #[test]
+    fn test_embed_from_field() {
+        assert_eq!(Ok(make_word(false, 1u8, 2u8, 3u8, 4u8, 5u8)),
+                   MixMachine::embed_from_field(make_word(false, 1u8, 2u8, 3u8, 4u8, 5u8 ),
+                                                make_word(false, 6u8, 7u8, 8u8, 9u8, 10u8),
+                                                8*0 + 5));
     }
 
     #[test]

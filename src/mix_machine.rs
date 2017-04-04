@@ -187,6 +187,18 @@ impl MixMachine {
         })
     }
 
+    fn execute_store_op(&mut self, op: &StoreOp) -> Result<(), MixMachineErr> {
+        self.compute_effective_address(op.address, op.index_spec).and_then(|effective_address| {
+            match op.register {
+                Some(reg) => self.peek_register(reg),
+                None      => Ok(0u32),
+            }.and_then(|value_to_load| {
+                self.poke_memory(effective_address, value_to_load)
+                // FIXME - field-specs
+            })
+        })
+    }
+
     pub fn step(&mut self) -> Result<(), MixMachineErr> {
         // Try instruction fetch
         let instruction =
@@ -200,8 +212,9 @@ impl MixMachine {
             op.or_else(|_| Err(MixMachineErr{message: format!("Unknown or unimplemeted instruction: {}", instruction)}))
         }).and_then(|op| {
             match op {
-                Load(op) => self.execute_load_op(&op),
-                _        => panic!("Not implemented."),
+                Load(op)  => self.execute_load_op(&op),
+                Store(op) => self.execute_store_op(&op),
+                _         => panic!("Not implemented."),
             }.and_then(|_| {
                 self.program_counter = self.program_counter + 1;
                 Ok(())

@@ -20,6 +20,13 @@ pub struct LoadOp {
     pub index_spec: u8,
 }
 
+pub struct StoreOp {
+    pub register: Option<Register>, // None causes a zero to be stored
+    pub field: u8,
+    pub address: i16,   // Note that the address of the op may be negative, and -0 and +0 do the same thing
+    pub index_spec: u8,
+}
+
 impl Operation {
     pub fn from_u32(instruction: u32) -> Result<Operation, ()> {
         let op_code: u8    = ( instruction        % 64u32) as u8;
@@ -46,6 +53,18 @@ impl Operation {
             20 => Ok(Load(LoadOp {register: RegI4, field: field_spec, negative: true, address: address, index_spec: index_spec})),
             21 => Ok(Load(LoadOp {register: RegI5, field: field_spec, negative: true, address: address, index_spec: index_spec})),
             22 => Ok(Load(LoadOp {register: RegI6, field: field_spec, negative: true, address: address, index_spec: index_spec})),
+            // Store instructions
+            24 => Ok(Store(StoreOp {register: Some(RegA),  field: field_spec, address: address, index_spec: index_spec})),
+            31 => Ok(Store(StoreOp {register: Some(RegX),  field: field_spec, address: address, index_spec: index_spec})),
+            25 => Ok(Store(StoreOp {register: Some(RegI1), field: field_spec, address: address, index_spec: index_spec})),
+            26 => Ok(Store(StoreOp {register: Some(RegI2), field: field_spec, address: address, index_spec: index_spec})),
+            27 => Ok(Store(StoreOp {register: Some(RegI3), field: field_spec, address: address, index_spec: index_spec})),
+            28 => Ok(Store(StoreOp {register: Some(RegI4), field: field_spec, address: address, index_spec: index_spec})),
+            29 => Ok(Store(StoreOp {register: Some(RegI5), field: field_spec, address: address, index_spec: index_spec})),
+            30 => Ok(Store(StoreOp {register: Some(RegI6), field: field_spec, address: address, index_spec: index_spec})),
+            32 => Ok(Store(StoreOp {register: Some(RegJ),  field: field_spec, address: address, index_spec: index_spec})),
+            33 => Ok(Store(StoreOp {register: None,        field: field_spec, address: address, index_spec: index_spec})),    // STZ, stores zero
+
             // Unknown (or not implemented)
             _  => Err(())
         }
@@ -60,9 +79,6 @@ impl Operation {
         sgn_bit + ((address as u32) << 18) + ((index_spec as u32) << 12) + ((field_spec as u32) << 6) + (op_code as u32)
     }
 }
-
-
-pub enum StoreOp { STA, STX, ST1, ST2, ST3, ST4, ST5, ST6, STJ, STZ }
 
 pub enum ArithOp { ADD, SUB, MUL, DIV }
 

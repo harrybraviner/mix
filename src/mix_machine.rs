@@ -183,18 +183,27 @@ impl MixMachine {
         } else if left > right {
             Err(MixMachineErr{message: format!("Field specification {} has L={}, R={}. Must have L<=R.", field, left, right)})
         } else {
-            let (left_byte, sign) = if left == 0 { (1, value_to_write & (1u32<<30)) } else { (left, value_to_overwrite & (1u32 << 30)) };
-            let right_byte = if right == 0 { 1 } else { right };
-            let bytes_out = if right == 0 {
-                // In this case we only want the sign bit to be overwritten, so keep everything else
-                value_to_overwrite & ((1u32 << 30) - 1)
+            if left == 0 && right == 0 {
+                // Modify only the sign bit
+                Ok((value_to_overwrite & ((1u32 << 30) - 1)) | (value_to_write & (1u32 << 30)))
             } else {
-                let bits_to_overwrite = ((1u32 << 6*(right_byte - left_byte + 1)) - 1) << 6*(right_byte - 5);
-                let masked_original = value_to_overwrite & (((1u32 << 30) - 1) ^ bits_to_overwrite);
-                let masked_new = (value_to_write & ((1u32 << 6*(right_byte - left_byte + 1)) - 1)) << 6*(right_byte - 5);
-                masked_original + masked_new
-            };
-            Ok(bytes_out + sign)
+                // This construct is to avoid code duplication
+                let (left, sign_bit) = 
+                    if left == 0 {
+                        // Modify both the sign bit and some of the bytes
+                        let left = 1;   // Shadow with the internal value of the left bit
+                        let sign_bit = value_to_write & (1u32 << 30);
+                        (left, sign_bit)
+                    } else {
+                        let sign_bit = value_to_overwrite & (1u32 << 30);
+                        (left, sign_bit)
+                    };
+                let mask1 = ((1u32 << 30) - 1) ^ (((1u32 << 6*(right - left + 1)) - 1) << 6 * (5 - right));
+                let masked_value_to_overwrite = value_to_overwrite & mask1;
+                let mask2 = (1u32 << 6*(right - left + 1)) - 1;
+                let masked_value_to_write = (value_to_write & mask2) << 6 * (5 - right);
+                Ok(sign_bit | masked_value_to_overwrite | masked_value_to_write)
+            }
         }
     }
 
@@ -313,6 +322,16 @@ mod tests {
                    MixMachine::embed_from_field(make_word(false, 1u8, 2u8, 3u8, 4u8, 5u8 ),
                                                 make_word(false, 6u8, 7u8, 8u8, 9u8, 10u8),
                                                 8*0 + 5));
+
+        assert_eq!(Ok(make_word(false, 6u8, 3u8, 4u8, 5u8, 10u8)),
+                   MixMachine::embed_from_field(make_word(false, 1u8, 2u8, 3u8, 4u8, 5u8 ),
+                                                make_word(false, 6u8, 7u8, 8u8, 9u8, 10u8),
+                                                8*2 + 4));
+
+        assert_eq!(Ok(make_word(true, 4u8, 5u8, 8u8, 9u8, 10u8)),
+                   MixMachine::embed_from_field(make_word(true,  1u8, 2u8, 3u8, 4u8, 5u8 ),
+                                                make_word(false, 6u8, 7u8, 8u8, 9u8, 10u8),
+                                                8*0 + 2));
     }
 
     #[test]

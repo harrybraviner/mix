@@ -227,8 +227,11 @@ impl MixMachine {
                 Some(reg) => self.peek_register(reg),
                 None      => Ok(0u32),
             }.and_then(|value_to_load| {
-                self.poke_memory(effective_address, value_to_load)
-                // FIXME - field-specs
+                self.peek_memory(effective_address).and_then(|value_to_overwrite| {
+                    MixMachine::embed_from_field(value_to_load, value_to_overwrite, op.field).and_then(|value_to_load| {
+                        self.poke_memory(effective_address, value_to_load)
+                    })
+                })
             })
         })
     }

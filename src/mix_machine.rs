@@ -252,7 +252,10 @@ impl MixMachine {
     // Take the truncated memory contents and perform the addition into register A
     fn execute_addition(&mut self, v: u32) -> Result<(), MixMachineErr> {
         self.peek_register(Register::RegA).and_then(|a| {
-            let result = a + v; // FIXME
+            let signed_a = if a & (1u32 << 30) == 0u32 { a as i32 } else { -1i32*((a - (1u32 << 30)) as i32) };
+            let signed_v = if v & (1u32 << 30) == 0u32 { v as i32 } else { -1i32*((v - (1u32 << 30)) as i32) };
+            let signed_result = signed_a + signed_v;
+            let result = if signed_result >= 0i32 { signed_result as u32 } else { ((-1i32*signed_result) as u32) + (1u32 << 30) };
             self.poke_register(Register::RegA, result)
         })
     }

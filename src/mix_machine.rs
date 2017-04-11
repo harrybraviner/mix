@@ -236,6 +236,27 @@ impl MixMachine {
         })
     }
 
+    fn execute_arithmetic_op(&mut self, op: &ArithOp) -> Result<(), MixMachineErr> {
+        self.compute_effective_address(op.address, op.index_spec).and_then(|effective_address| {
+            self.peek_memory(effective_address).and_then(|contents| {
+                MixMachine::truncate_to_field(contents, op.field).and_then(|v| {
+                    match op.op_type {
+                        ArithOpType::Addition => self.execute_addition(v),
+                        _ => panic!("Arithmetic operation not implemented"),
+                    }
+                })
+            })
+        })
+    }
+
+    // Take the truncated memory contents and perform the addition into register A
+    fn execute_addition(&mut self, v: u32) -> Result<(), MixMachineErr> {
+        self.peek_register(Register::RegA).and_then(|a| {
+            let result = a + v; // FIXME
+            self.poke_register(Register::RegA, result)
+        })
+    }
+
     pub fn step(&mut self) -> Result<(), MixMachineErr> {
         // Try instruction fetch
         let instruction =
@@ -251,6 +272,7 @@ impl MixMachine {
             match op {
                 Load(op)  => self.execute_load_op(&op),
                 Store(op) => self.execute_store_op(&op),
+                Arithmetic(op) => self.execute_arithmetic_op(&op),
                 _         => panic!("Not implemented."),
             }.and_then(|_| {
                 self.program_counter = self.program_counter + 1;

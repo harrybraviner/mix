@@ -27,6 +27,17 @@ pub struct StoreOp {
     pub index_spec: u8,
 }
 
+pub enum ArithOpType {
+    Addition, Subtraction, Multiplication, Division,
+}
+
+pub struct ArithOp {
+    pub op_type: ArithOpType,
+    pub field: u8,
+    pub address: i16,
+    pub index_spec: u8,
+}
+
 impl Operation {
     pub fn from_u32(instruction: u32) -> Result<Operation, ()> {
         let op_code: u8    = ( instruction        % 64u32) as u8;
@@ -64,6 +75,8 @@ impl Operation {
             30 => Ok(Store(StoreOp {register: Some(RegI6), field: field_spec, address: address, index_spec: index_spec})),
             32 => Ok(Store(StoreOp {register: Some(RegJ),  field: field_spec, address: address, index_spec: index_spec})),
             33 => Ok(Store(StoreOp {register: None,        field: field_spec, address: address, index_spec: index_spec})),    // STZ, stores zero
+            // Add instruction
+            1  => Ok(Arithmetic(ArithOp {op_type: ArithOpType::Addition, field: field_spec, address: address, index_spec: index_spec })),
 
             // Unknown (or not implemented)
             _  => Err(())
@@ -79,8 +92,6 @@ impl Operation {
         sgn_bit + ((address as u32) << 18) + ((index_spec as u32) << 12) + ((field_spec as u32) << 6) + (op_code as u32)
     }
 }
-
-pub enum ArithOp { ADD, SUB, MUL, DIV }
 
 pub enum AddressOp { ENTA, ENTX, ENT1, ENT2, ENT3, ENT4, ENT5, ENT6, 
                  ENNA, ENNX, ENN1, ENN2, ENN3, ENN4, ENN5, ENN6,

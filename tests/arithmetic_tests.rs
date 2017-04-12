@@ -118,3 +118,15 @@ fn test_addition_of_two_largest_numbers() {
     assert_eq!(mix_machine.peek_register(Register::RegA), Ok((1u32 << 30) - 2u32));   // Note: maximum int - 1
     assert_eq!(mix_machine.peek_overflow_toggle(), Ok(true));
 }
+
+#[test]
+fn test_subtraction() {
+    let mut mix_machine = MixMachine::new();
+    assert_eq!(mix_machine.poke_memory(0u16, Operation::make_instruction(true, 10u16, 0u8, 5u8, 2u8)), Ok(())); // Subtract CONTENTS(1) from register A
+    assert_eq!(mix_machine.poke_register(Register::RegA, 90u32), Ok(()));    // Set register A to 90
+    assert_eq!(mix_machine.poke_memory(10u16, 50u32), Ok(()));  // Set CONTENTS(10) to 50
+    assert_eq!(mix_machine.step(), Ok(())); // Execute addition
+
+    assert_eq!(mix_machine.peek_register(Register::RegA), Ok(40u32));
+    assert_eq!(mix_machine.peek_overflow_toggle(), Ok(false));
+}

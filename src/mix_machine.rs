@@ -257,12 +257,17 @@ impl MixMachine {
             self.peek_memory(effective_address).and_then(|contents| {
                 MixMachine::truncate_to_field(contents, op.field).and_then(|v| {
                     match op.op_type {
-                        ArithOpType::Addition => self.execute_addition(v),
+                        ArithOpType::Addition    => self.execute_addition(v),
+                        ArithOpType::Subtraction => self.execute_subtraction(v),
                         _ => panic!("Arithmetic operation not implemented"),
                     }
                 })
             })
         })
+    }
+
+    fn execute_subtraction(&mut self, v: u32) -> Result<(), MixMachineErr> {
+        self.execute_addition(v ^ (1u32 << 30)) // Flip the sign of v and perform addition
     }
 
     // Take the truncated memory contents and perform the addition into register A

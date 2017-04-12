@@ -271,7 +271,7 @@ impl MixMachine {
             let signed_a = if a & (1u32 << 30) == 0u32 { a as i32 } else { -1i32*((a - (1u32 << 30)) as i32) };
             let signed_v = if v & (1u32 << 30) == 0u32 { v as i32 } else { -1i32*((v - (1u32 << 30)) as i32) };
             let signed_result = signed_a + signed_v;    // This calculation can't actually overflow, assuming valid mix registers were passed in
-            (if signed_result & (1i32 << 30) != 0 { self.set_overflow_toggle() } else { Ok(()) }).and_then(|_| {
+            (if signed_result >= (1i32 << 30) || signed_result <= -1i32*(1i32 << 30) { self.set_overflow_toggle() } else { Ok(()) }).and_then(|_| {
                 let result = if signed_result >= 0i32 {
                     // Ensure that the sign bit is cleared in case of (mix) overflow
                     (signed_result as u32) & ((1u32 << 30) - 1u32)

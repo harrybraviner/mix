@@ -16,6 +16,7 @@ pub struct MixMachine {
     register_I6: u16,
     register_J: u16,
     program_counter: u16,   // Not strictly specified in MIX, but needed!
+    overflow_toggle_on: bool,
     memory: [u32; MEM_SIZE as usize]
 }
 
@@ -35,6 +36,7 @@ impl MixMachine {
             register_I3: 0u16, register_I4: 0u16,
             register_I5: 0u16, register_I6: 0u16,
             program_counter: 0u16,
+            overflow_toggle_on: false,
             register_J: 0u16, memory: [0; MEM_SIZE as usize]
         }
     }
@@ -91,6 +93,20 @@ impl MixMachine {
             Register::RegI6 => MixMachine::reg16_to_reg32(self.register_I6),
             Register::RegJ  => MixMachine::reg16_to_reg32(self.register_J ),
         })
+    }
+
+    pub fn peek_overflow_toggle(&self) -> Result<bool, MixMachineErr> {
+        Ok(self.overflow_toggle_on)
+    }
+
+    pub fn set_overflow_toggle(&mut self) -> Result<(), MixMachineErr> {
+        self.overflow_toggle_on = true;
+        Ok(())
+    }
+
+    pub fn clear_overflow_toggle(&mut self) -> Result<(), MixMachineErr> {
+        self.overflow_toggle_on = false;
+        Ok(())
     }
 
     // For if we want to load a register from a memory value
@@ -254,9 +270,17 @@ impl MixMachine {
         self.peek_register(Register::RegA).and_then(|a| {
             let signed_a = if a & (1u32 << 30) == 0u32 { a as i32 } else { -1i32*((a - (1u32 << 30)) as i32) };
             let signed_v = if v & (1u32 << 30) == 0u32 { v as i32 } else { -1i32*((v - (1u32 << 30)) as i32) };
-            let signed_result = signed_a + signed_v;
-            let result = if signed_result >= 0i32 { signed_result as u32 } else { ((-1i32*signed_result) as u32) + (1u32 << 30) };
-            self.poke_register(Register::RegA, result)
+            let signed_result = signed_a + signed_v;    // This calculation can't actually overflow, assuming valid mix registers were passed in
+            (if signed_result & (1i32 << 30) != 0 { self.set_overflow_toggle() } else { Ok(()) }).and_then(|_| {
+                let result = if signed_result >= 0i32 {
+                    // Ensure that the sign bit is cleared in case of (mix) overflow
+                    (signed_result as u32) & ((1u32 << 30) - 1u32)
+                } else {
+                    // Ensure that the sign bit is set in case of (mix) overflow
+                    ((-1i32*signed_result) as u32)& ((1u32 << 30) - 1u32) | (1u32 << 30)
+                };
+                self.poke_register(Register::RegA, result)
+            })
         })
     }
 

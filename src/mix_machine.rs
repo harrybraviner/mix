@@ -257,8 +257,9 @@ impl MixMachine {
             self.peek_memory(effective_address).and_then(|contents| {
                 MixMachine::truncate_to_field(contents, op.field).and_then(|v| {
                     match op.op_type {
-                        ArithOpType::Addition    => self.execute_addition(v),
-                        ArithOpType::Subtraction => self.execute_subtraction(v),
+                        ArithOpType::Addition       => self.execute_addition(v),
+                        ArithOpType::Subtraction    => self.execute_subtraction(v),
+                        ArithOpType::Multiplication => self.execute_multiplication(v),
                         _ => panic!("Arithmetic operation not implemented"),
                     }
                 })
@@ -285,6 +286,18 @@ impl MixMachine {
                     ((-1i32*signed_result) as u32)& ((1u32 << 30) - 1u32) | (1u32 << 30)
                 };
                 self.poke_register(Register::RegA, result)
+            })
+        })
+    }
+
+    fn execute_multiplication(&mut self, v: u32) -> Result<(), MixMachineErr> {
+        self.peek_register(Register::RegA).and_then(|a| {
+            let sign_bit = (a & (1u32 << 30)) ^ (v & (1u32 << 30));
+            let product_magnitude = ((a as u64) & ((1u64 << 30) - 1)) * ((v as u64) & ((1u64 << 30) - 1));
+            let lower_part_of_result = sign_bit | ((product_magnitude & ((1u64 << 30) - 1)) as u32);
+            let upper_part_of_result = sign_bit | (((product_magnitude >> 30) & ((1u64 << 30) - 1)) as u32);
+            self.poke_register(Register::RegA, lower_part_of_result).and_then(|_| {
+                self.poke_register(Register::RegX, upper_part_of_result)
             })
         })
     }

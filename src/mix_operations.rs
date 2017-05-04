@@ -76,8 +76,9 @@ impl Operation {
             32 => Ok(Store(StoreOp {register: Some(RegJ),  field: field_spec, address: address, index_spec: index_spec})),
             33 => Ok(Store(StoreOp {register: None,        field: field_spec, address: address, index_spec: index_spec})),    // STZ, stores zero
             // Add instruction
-            1  => Ok(Arithmetic(ArithOp {op_type: ArithOpType::Addition,    field: field_spec, address: address, index_spec: index_spec })),
-            2  => Ok(Arithmetic(ArithOp {op_type: ArithOpType::Subtraction, field: field_spec, address: address, index_spec: index_spec })),
+            1  => Ok(Arithmetic(ArithOp {op_type: ArithOpType::Addition,       field: field_spec, address: address, index_spec: index_spec })),
+            2  => Ok(Arithmetic(ArithOp {op_type: ArithOpType::Subtraction,    field: field_spec, address: address, index_spec: index_spec })),
+            3  => Ok(Arithmetic(ArithOp {op_type: ArithOpType::Multiplication, field: field_spec, address: address, index_spec: index_spec })),
 
             // Unknown (or not implemented)
             _  => Err(())

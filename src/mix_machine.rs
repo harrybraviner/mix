@@ -296,8 +296,8 @@ impl MixMachine {
             let product_magnitude = ((a as u64) & ((1u64 << 30) - 1)) * ((v as u64) & ((1u64 << 30) - 1));
             let lower_part_of_result = sign_bit | ((product_magnitude & ((1u64 << 30) - 1)) as u32);
             let upper_part_of_result = sign_bit | (((product_magnitude >> 30) & ((1u64 << 30) - 1)) as u32);
-            self.poke_register(Register::RegA, lower_part_of_result).and_then(|_| {
-                self.poke_register(Register::RegX, upper_part_of_result)
+            self.poke_register(Register::RegX, lower_part_of_result).and_then(|_| {
+                self.poke_register(Register::RegA, upper_part_of_result)
             })
         })
     }

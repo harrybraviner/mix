@@ -136,12 +136,11 @@ fn test_small_positive_multiplication() {
     let mut mix_machine = MixMachine::new();
     assert_eq!(mix_machine.poke_memory(0u16, Operation::make_instruction(true, 10u16, 0u8, 5u8, 3u8)), Ok(())); // Multiply A by CONTENTS(10) and store in X and A
     assert_eq!(mix_machine.poke_register(Register::RegA, 10u32), Ok(()));   // Set register A to 10
-    assert_eq!(mix_machine.poke_register(Register::RegX, 8u32 ), Ok(()));   // Set register X to 8
     assert_eq!(mix_machine.poke_memory(10u16, 8u32), Ok(()));   // Set CONTENTS(10) to 8
     assert_eq!(mix_machine.step(), Ok(())); // Execute addition
 
-    assert_eq!(mix_machine.peek_register(Register::RegA), Ok(80u32));   // Check that register A contains +80
-    assert_eq!(mix_machine.peek_register(Register::RegX), Ok(0u32));   // Check that register X contains +0
+    assert_eq!(mix_machine.peek_register(Register::RegX), Ok(80u32));   // Check that register X contains +80
+    assert_eq!(mix_machine.peek_register(Register::RegA), Ok(0u32));   // Check that register A contains +0
 }
 
 #[test]
@@ -149,12 +148,11 @@ fn test_small_negative_multiplication() {
     let mut mix_machine = MixMachine::new();
     assert_eq!(mix_machine.poke_memory(0u16, Operation::make_instruction(true, 10u16, 0u8, 5u8, 3u8)), Ok(())); // Multiply A by CONTENTS(10) and store in X and A
     assert_eq!(mix_machine.poke_register(Register::RegA, 10u32 + (1u32 << 30)), Ok(()));   // Set register A to -10
-    assert_eq!(mix_machine.poke_register(Register::RegX, 8u32 ), Ok(()));   // Set register X to 8
     assert_eq!(mix_machine.poke_memory(10u16, 8u32), Ok(()));   // Set CONTENTS(10) to 8
     assert_eq!(mix_machine.step(), Ok(())); // Execute addition
 
-    assert_eq!(mix_machine.peek_register(Register::RegA), Ok(80u32 + (1u32 << 30)));   // Check that register A contains -80
-    assert_eq!(mix_machine.peek_register(Register::RegX), Ok(1u32 << 30));   // Check that register X contains -0
+    assert_eq!(mix_machine.peek_register(Register::RegX), Ok(80u32 + (1u32 << 30)));   // Check that register X contains -80
+    assert_eq!(mix_machine.peek_register(Register::RegA), Ok(1u32 << 30));   // Check that register A contains -0
 }
 
 #[test]
@@ -162,12 +160,11 @@ fn test_small_other_negative_multiplication() {
     let mut mix_machine = MixMachine::new();
     assert_eq!(mix_machine.poke_memory(0u16, Operation::make_instruction(true, 10u16, 0u8, 5u8, 3u8)), Ok(())); // Multiply A by CONTENTS(10) and store in X and A
     assert_eq!(mix_machine.poke_register(Register::RegA, 10u32), Ok(()));   // Set register A to 10
-    assert_eq!(mix_machine.poke_register(Register::RegX, 8u32 ), Ok(()));   // Set register X to 8
     assert_eq!(mix_machine.poke_memory(10u16, 8u32 + (1u32 << 30)), Ok(()));   // Set CONTENTS(10) to -8
     assert_eq!(mix_machine.step(), Ok(())); // Execute addition
 
-    assert_eq!(mix_machine.peek_register(Register::RegA), Ok(80u32 + (1u32 << 30)));   // Check that register A contains -80
-    assert_eq!(mix_machine.peek_register(Register::RegX), Ok(1u32 << 30));   // Check that register X contains -0
+    assert_eq!(mix_machine.peek_register(Register::RegX), Ok(80u32 + (1u32 << 30)));   // Check that register X contains -80
+    assert_eq!(mix_machine.peek_register(Register::RegA), Ok(1u32 << 30));   // Check that register A contains -0
 }
 
 #[test]
@@ -175,10 +172,9 @@ fn test_large_multiplication() {
     let mut mix_machine = MixMachine::new();
     assert_eq!(mix_machine.poke_memory(0u16, Operation::make_instruction(true, 10u16, 0u8, 5u8, 3u8)), Ok(())); // Multiply A by CONTENTS(10) and store in X and A
     assert_eq!(mix_machine.poke_register(Register::RegA, (1u32 << 30) + (1u32 << 20) + (1u32 << 10)), Ok(()));   // Set register A to -(2^20 + 2^10)
-    assert_eq!(mix_machine.poke_register(Register::RegX, 8u32 ), Ok(()));   // Set register X to 8
     assert_eq!(mix_machine.poke_memory(10u16, 1u32 << 15), Ok(()));   // Set CONTENTS(10) to 2^15
     assert_eq!(mix_machine.step(), Ok(())); // Execute addition
 
-    assert_eq!(mix_machine.peek_register(Register::RegA), Ok((1u32 << 25) + (1u32 << 30)));   // Check that register A contains -2^25
-    assert_eq!(mix_machine.peek_register(Register::RegX), Ok((1u32 << 5) + (1u32 << 30)));   // Check that register X contains -2^5
+    assert_eq!(mix_machine.peek_register(Register::RegX), Ok((1u32 << 25) + (1u32 << 30)));   // Check that register X contains -2^25
+    assert_eq!(mix_machine.peek_register(Register::RegA), Ok((1u32 << 5) + (1u32 << 30)));   // Check that register A contains -2^5
 }

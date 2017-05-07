@@ -137,7 +137,7 @@ fn test_small_positive_multiplication() {
     assert_eq!(mix_machine.poke_memory(0u16, Operation::make_instruction(true, 10u16, 0u8, 5u8, 3u8)), Ok(())); // Multiply A by CONTENTS(10) and store in X and A
     assert_eq!(mix_machine.poke_register(Register::RegA, 10u32), Ok(()));   // Set register A to 10
     assert_eq!(mix_machine.poke_memory(10u16, 8u32), Ok(()));   // Set CONTENTS(10) to 8
-    assert_eq!(mix_machine.step(), Ok(())); // Execute addition
+    assert_eq!(mix_machine.step(), Ok(())); // Execute multiplication
 
     assert_eq!(mix_machine.peek_register(Register::RegX), Ok(80u32));   // Check that register X contains +80
     assert_eq!(mix_machine.peek_register(Register::RegA), Ok(0u32));   // Check that register A contains +0
@@ -149,7 +149,7 @@ fn test_small_negative_multiplication() {
     assert_eq!(mix_machine.poke_memory(0u16, Operation::make_instruction(true, 10u16, 0u8, 5u8, 3u8)), Ok(())); // Multiply A by CONTENTS(10) and store in X and A
     assert_eq!(mix_machine.poke_register(Register::RegA, 10u32 + (1u32 << 30)), Ok(()));   // Set register A to -10
     assert_eq!(mix_machine.poke_memory(10u16, 8u32), Ok(()));   // Set CONTENTS(10) to 8
-    assert_eq!(mix_machine.step(), Ok(())); // Execute addition
+    assert_eq!(mix_machine.step(), Ok(())); // Execute multiplication
 
     assert_eq!(mix_machine.peek_register(Register::RegX), Ok(80u32 + (1u32 << 30)));   // Check that register X contains -80
     assert_eq!(mix_machine.peek_register(Register::RegA), Ok(1u32 << 30));   // Check that register A contains -0
@@ -161,7 +161,7 @@ fn test_small_other_negative_multiplication() {
     assert_eq!(mix_machine.poke_memory(0u16, Operation::make_instruction(true, 10u16, 0u8, 5u8, 3u8)), Ok(())); // Multiply A by CONTENTS(10) and store in X and A
     assert_eq!(mix_machine.poke_register(Register::RegA, 10u32), Ok(()));   // Set register A to 10
     assert_eq!(mix_machine.poke_memory(10u16, 8u32 + (1u32 << 30)), Ok(()));   // Set CONTENTS(10) to -8
-    assert_eq!(mix_machine.step(), Ok(())); // Execute addition
+    assert_eq!(mix_machine.step(), Ok(())); // Execute multiplication
 
     assert_eq!(mix_machine.peek_register(Register::RegX), Ok(80u32 + (1u32 << 30)));   // Check that register X contains -80
     assert_eq!(mix_machine.peek_register(Register::RegA), Ok(1u32 << 30));   // Check that register A contains -0
@@ -173,8 +173,111 @@ fn test_large_multiplication() {
     assert_eq!(mix_machine.poke_memory(0u16, Operation::make_instruction(true, 10u16, 0u8, 5u8, 3u8)), Ok(())); // Multiply A by CONTENTS(10) and store in X and A
     assert_eq!(mix_machine.poke_register(Register::RegA, (1u32 << 30) + (1u32 << 20) + (1u32 << 10)), Ok(()));   // Set register A to -(2^20 + 2^10)
     assert_eq!(mix_machine.poke_memory(10u16, 1u32 << 15), Ok(()));   // Set CONTENTS(10) to 2^15
-    assert_eq!(mix_machine.step(), Ok(())); // Execute addition
+    assert_eq!(mix_machine.step(), Ok(())); // Execute multiplication
 
     assert_eq!(mix_machine.peek_register(Register::RegX), Ok((1u32 << 25) + (1u32 << 30)));   // Check that register X contains -2^25
     assert_eq!(mix_machine.peek_register(Register::RegA), Ok((1u32 << 5) + (1u32 << 30)));   // Check that register A contains -2^5
+}
+
+#[test]
+fn test_division_exact() {
+    let mut mix_machine = MixMachine::new();
+    assert_eq!(mix_machine.poke_memory(0u16, Operation::make_instruction(true, 10u16, 0u8, 5u8, 4u8)), Ok(())); // Divide [A, X] by CONTENTS(10) and store in A
+
+    assert_eq!(mix_machine.poke_register(Register::RegA, 0u32), Ok(()));   // Set register A to 0
+    assert_eq!(mix_machine.poke_register(Register::RegX, 18u32), Ok(()));   // Set register X to 18
+    assert_eq!(mix_machine.poke_memory(10u16, 3u32), Ok(()));   // Set CONTENTS(10) to 3
+    assert_eq!(mix_machine.step(), Ok(())); // Execute division
+
+    assert_eq!(mix_machine.peek_register(Register::RegA), Ok(6u32));    // Check that register A contains the quotient, 6
+    assert_eq!(mix_machine.peek_register(Register::RegX), Ok(0u32));    // Check that register A contains the remainder, 0
+    assert_eq!(mix_machine.peek_overflow_toggle(), Ok(false));
+}
+
+#[test]
+fn test_division_not_exact() {
+    let mut mix_machine = MixMachine::new();
+    assert_eq!(mix_machine.poke_memory(0u16, Operation::make_instruction(true, 10u16, 0u8, 5u8, 4u8)), Ok(())); // Divide [A, X] by CONTENTS(10) and store in A
+
+    assert_eq!(mix_machine.poke_register(Register::RegA, 0u32), Ok(()));   // Set register A to 0
+    assert_eq!(mix_machine.poke_register(Register::RegX, 27u32 + (1u32 << 30)), Ok(()));   // Set register X to -27 (minus sign should get discarded)
+    assert_eq!(mix_machine.poke_memory(10u16, 7u32), Ok(()));   // Set CONTENTS(10) to 7
+    assert_eq!(mix_machine.step(), Ok(())); // Execute division
+
+    assert_eq!(mix_machine.peek_register(Register::RegA), Ok(3u32));    // Check that register A contains the quotient, 3
+    assert_eq!(mix_machine.peek_register(Register::RegX), Ok(6u32));    // Check that register A contains the remainder, 6
+    assert_eq!(mix_machine.peek_overflow_toggle(), Ok(false));
+}
+
+#[test]
+fn test_division_negative_dividend() {
+    let mut mix_machine = MixMachine::new();
+    assert_eq!(mix_machine.poke_memory(0u16, Operation::make_instruction(true, 10u16, 0u8, 5u8, 4u8)), Ok(())); // Divide [A, X] by CONTENTS(10) and store in A
+
+    assert_eq!(mix_machine.poke_register(Register::RegA, 1u32 << 30), Ok(()));   // Set register A to -0
+    assert_eq!(mix_machine.poke_register(Register::RegX, 27u32), Ok(()));   // Set register X to 27
+    assert_eq!(mix_machine.poke_memory(10u16, 7u32), Ok(()));   // Set CONTENTS(10) to 7
+    assert_eq!(mix_machine.step(), Ok(())); // Execute division
+
+    assert_eq!(mix_machine.peek_register(Register::RegA), Ok(3u32 + (1u32 << 30)));    // Check that register A contains the quotient, -3
+    assert_eq!(mix_machine.peek_register(Register::RegX), Ok(6u32 + (1u32 << 30)));    // Check that register A contains the remainder, -6
+    assert_eq!(mix_machine.peek_overflow_toggle(), Ok(false));
+}
+
+#[test]
+fn test_division_negative_divisor() {
+    let mut mix_machine = MixMachine::new();
+    assert_eq!(mix_machine.poke_memory(0u16, Operation::make_instruction(true, 10u16, 0u8, 5u8, 4u8)), Ok(())); // Divide [A, X] by CONTENTS(10) and store in A
+
+    assert_eq!(mix_machine.poke_register(Register::RegA, 0u32), Ok(()));   // Set register A to 0
+    assert_eq!(mix_machine.poke_register(Register::RegX, 27u32), Ok(()));   // Set register X to 27
+    assert_eq!(mix_machine.poke_memory(10u16, 7u32 + (1u32 << 30)), Ok(()));   // Set CONTENTS(10) to -7
+    assert_eq!(mix_machine.step(), Ok(())); // Execute division
+
+    assert_eq!(mix_machine.peek_register(Register::RegA), Ok(3u32 + (1u32 << 30)));    // Check that register A contains the quotient, -3
+    assert_eq!(mix_machine.peek_register(Register::RegX), Ok(6u32));    // Check that register A contains the remainder, 6
+    assert_eq!(mix_machine.peek_overflow_toggle(), Ok(false));
+}
+
+#[test]
+fn test_division_negative_everything() {
+    let mut mix_machine = MixMachine::new();
+    assert_eq!(mix_machine.poke_memory(0u16, Operation::make_instruction(true, 10u16, 0u8, 5u8, 4u8)), Ok(())); // Divide [A, X] by CONTENTS(10) and store in A
+
+    assert_eq!(mix_machine.poke_register(Register::RegA, 1u32 << 30), Ok(()));   // Set register A to -0
+    assert_eq!(mix_machine.poke_register(Register::RegX, 27u32), Ok(()));   // Set register X to 27
+    assert_eq!(mix_machine.poke_memory(10u16, 7u32 + (1u32 << 30)), Ok(()));   // Set CONTENTS(10) to -7
+    assert_eq!(mix_machine.step(), Ok(())); // Execute division
+
+    assert_eq!(mix_machine.peek_register(Register::RegA), Ok(3u32));    // Check that register A contains the quotient, -3
+    assert_eq!(mix_machine.peek_register(Register::RegX), Ok(6u32 + (1u32 << 30)));    // Check that register A contains the remainder, -6
+    assert_eq!(mix_machine.peek_overflow_toggle(), Ok(false));
+}
+
+#[test]
+fn test_division_large_with_no_overflow() {
+    let mut mix_machine = MixMachine::new();
+    assert_eq!(mix_machine.poke_memory(0u16, Operation::make_instruction(true, 10u16, 0u8, 5u8, 4u8)), Ok(())); // Divide [A, X] by CONTENTS(10) and store in A
+
+    assert_eq!(mix_machine.poke_register(Register::RegA, 1u32 << 8), Ok(()));   // Set register A to 2^8
+    assert_eq!(mix_machine.poke_register(Register::RegX, 1u32 << 22), Ok(()));   // Set register X to 2^22
+    assert_eq!(mix_machine.poke_memory(10u16, (1u32 << 20)), Ok(()));   // Set CONTENTS(10) to 2^20
+    assert_eq!(mix_machine.step(), Ok(())); // Execute division
+
+    assert_eq!(mix_machine.peek_register(Register::RegA), Ok((1u32 << 18) + (1u32 << 2)));    // Check that register A contains the quotient
+    assert_eq!(mix_machine.peek_register(Register::RegX), Ok(0u32));    // Check that register A contains the remainder, 0
+    assert_eq!(mix_machine.peek_overflow_toggle(), Ok(false));
+}
+
+#[test]
+fn test_division_large_with_overflow() {
+    let mut mix_machine = MixMachine::new();
+    assert_eq!(mix_machine.poke_memory(0u16, Operation::make_instruction(true, 10u16, 0u8, 5u8, 4u8)), Ok(())); // Divide [A, X] by CONTENTS(10) and store in A
+
+    assert_eq!(mix_machine.poke_register(Register::RegA, 1u32 << 20), Ok(()));   // Set register A to 2^20
+    assert_eq!(mix_machine.poke_register(Register::RegX, 1u32 << 22), Ok(()));   // Set register X to 2^22
+    assert_eq!(mix_machine.poke_memory(10u16, (1u32 << 20)), Ok(()));   // Set CONTENTS(10) to 2^20
+    assert_eq!(mix_machine.step(), Ok(())); // Execute division
+
+    assert_eq!(mix_machine.peek_overflow_toggle(), Ok(true));
 }

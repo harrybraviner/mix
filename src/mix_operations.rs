@@ -79,6 +79,7 @@ impl Operation {
             1  => Ok(Arithmetic(ArithOp {op_type: ArithOpType::Addition,       field: field_spec, address: address, index_spec: index_spec })),
             2  => Ok(Arithmetic(ArithOp {op_type: ArithOpType::Subtraction,    field: field_spec, address: address, index_spec: index_spec })),
             3  => Ok(Arithmetic(ArithOp {op_type: ArithOpType::Multiplication, field: field_spec, address: address, index_spec: index_spec })),
+            4  => Ok(Arithmetic(ArithOp {op_type: ArithOpType::Division,       field: field_spec, address: address, index_spec: index_spec })),
 
             // Unknown (or not implemented)
             _  => Err(())

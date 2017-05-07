@@ -260,7 +260,7 @@ impl MixMachine {
                         ArithOpType::Addition       => self.execute_addition(v),
                         ArithOpType::Subtraction    => self.execute_subtraction(v),
                         ArithOpType::Multiplication => self.execute_multiplication(v),
-                        _ => panic!("Arithmetic operation not implemented"),
+                        ArithOpType::Division       => self.execute_division(v),
                     }
                 })
             })
@@ -298,6 +298,29 @@ impl MixMachine {
             let upper_part_of_result = sign_bit | (((product_magnitude >> 30) & ((1u64 << 30) - 1)) as u32);
             self.poke_register(Register::RegX, lower_part_of_result).and_then(|_| {
                 self.poke_register(Register::RegA, upper_part_of_result)
+            })
+        })
+    }
+
+    fn execute_division(&mut self, v: u32) -> Result<(), MixMachineErr> {
+        self.peek_register(Register::RegA).and_then(|a| {
+            self.peek_register(Register::RegX).and_then(|x| {
+                let a_magnitude = a & ((1u32 << 30) - 1);
+                let x_magnitude = x & ((1u32 << 30) - 1);
+                let sign_a = a & (1u32 << 30);
+                let sign_v = v & (1u32 << 30);
+                let v_magnitude = (v & ((1u32 << 30) - 1)) as u64;
+                let dividend_magnitude = ((a_magnitude as u64) << 30) | (x_magnitude as u64);
+                let quotient_large = dividend_magnitude / v_magnitude;
+                if quotient_large >= 1u64 << 30 {
+                    self.set_overflow_toggle()
+                } else {
+                    let quotient = (sign_a ^ sign_v) + (quotient_large as u32);
+                    let remainder = sign_a + ((dividend_magnitude % v_magnitude) as u32);
+                    self.poke_register(Register::RegA, quotient).and_then(|_| {
+                        self.poke_register(Register::RegX, remainder)
+                    })
+                }
             })
         })
     }

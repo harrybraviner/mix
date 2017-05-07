@@ -38,12 +38,21 @@ pub struct ArithOp {
     pub index_spec: u8,
 }
 
+pub struct AddressOp {
+    pub register: Register,
+    pub address: i16,
+    pub negative_address: bool,
+    pub index_spec: u8,
+    pub increase: bool  // 'Increase' as opposed to 'enter'.
+}
+
 impl Operation {
     pub fn from_u32(instruction: u32) -> Result<Operation, ()> {
         let op_code: u8    = ( instruction        % 64u32) as u8;
         let field_spec: u8 = ((instruction >> 6 ) % 64u32) as u8;
         let index_spec: u8 = ((instruction >> 12) % 64u32) as u8;
-        let address: i16   = ((instruction >> 18) % 4096u32) as i16 * (if instruction & (1u32 << 30) != 0 { -1i16 } else { 1i16 });
+        let negative_address: bool = instruction & (1u32 << 30) != 0;
+        let address: i16   = ((instruction >> 18) % 4096u32) as i16 * (if negative_address { -1i16 } else { 1i16 });
         
         match op_code {
             // Load instructions
@@ -75,11 +84,13 @@ impl Operation {
             30 => Ok(Store(StoreOp {register: Some(RegI6), field: field_spec, address: address, index_spec: index_spec})),
             32 => Ok(Store(StoreOp {register: Some(RegJ),  field: field_spec, address: address, index_spec: index_spec})),
             33 => Ok(Store(StoreOp {register: None,        field: field_spec, address: address, index_spec: index_spec})),    // STZ, stores zero
-            // Add instruction
+            // Arithmetic instructions
             1  => Ok(Arithmetic(ArithOp {op_type: ArithOpType::Addition,       field: field_spec, address: address, index_spec: index_spec })),
             2  => Ok(Arithmetic(ArithOp {op_type: ArithOpType::Subtraction,    field: field_spec, address: address, index_spec: index_spec })),
             3  => Ok(Arithmetic(ArithOp {op_type: ArithOpType::Multiplication, field: field_spec, address: address, index_spec: index_spec })),
             4  => Ok(Arithmetic(ArithOp {op_type: ArithOpType::Division,       field: field_spec, address: address, index_spec: index_spec })),
+            // Address transfer instructions
+            48 => Ok(AddressTransfer(AddressOp {register: RegA, address: address, negative_address: negative_address, index_spec: index_spec, increase: false})),
 
             // Unknown (or not implemented)
             _  => Err(())
@@ -95,11 +106,6 @@ impl Operation {
         sgn_bit + ((address as u32) << 18) + ((index_spec as u32) << 12) + ((field_spec as u32) << 6) + (op_code as u32)
     }
 }
-
-pub enum AddressOp { ENTA, ENTX, ENT1, ENT2, ENT3, ENT4, ENT5, ENT6, 
-                 ENNA, ENNX, ENN1, ENN2, ENN3, ENN4, ENN5, ENN6,
-                 INCA, INCX, INC1, INC2, INC3, INC4, INC5, INC6,
-                 DECA, DECX, DEC1, DEC2, DEC3, DEC4, DEC5, DEC6 }
 
 pub enum CompOp { CMPA, CMPX, CMP1, CMP2, CMP3, CMP4, CMP5, CMP6 }
 

@@ -142,23 +142,36 @@ impl MixMachine {
         }
     }
 
+    fn compute_indexed_address(&self, address: i16, index_spec: u8) -> Result<i16, MixMachineErr> {
+        match index_spec {
+            0 => Ok(address),
+            1 => self.peek_register(Register::RegI1).map(|x| (MixMachine::reg32_to_i32(x) as i16) + address),
+            2 => self.peek_register(Register::RegI2).map(|x| (MixMachine::reg32_to_i32(x) as i16) + address),
+            3 => self.peek_register(Register::RegI3).map(|x| (MixMachine::reg32_to_i32(x) as i16) + address),
+            4 => self.peek_register(Register::RegI4).map(|x| (MixMachine::reg32_to_i32(x) as i16) + address),
+            5 => self.peek_register(Register::RegI5).map(|x| (MixMachine::reg32_to_i32(x) as i16) + address),
+            6 => self.peek_register(Register::RegI6).map(|x| (MixMachine::reg32_to_i32(x) as i16) + address),
+            _ => Err(MixMachineErr{message: format!("Invalid index_spec for computing effective address: {}", index_spec)}),
+        }
+    }
+
     fn compute_effective_address(&self, address: i16, index_spec: u8) -> Result<u16, MixMachineErr> {
-        let effective_address =
-            match index_spec {
-                0 => Ok(address),
-                1 => self.peek_register(Register::RegI1).map(|x| (MixMachine::reg32_to_i32(x) as i16) + address),
-                2 => self.peek_register(Register::RegI2).map(|x| (MixMachine::reg32_to_i32(x) as i16) + address),
-                3 => self.peek_register(Register::RegI3).map(|x| (MixMachine::reg32_to_i32(x) as i16) + address),
-                4 => self.peek_register(Register::RegI4).map(|x| (MixMachine::reg32_to_i32(x) as i16) + address),
-                5 => self.peek_register(Register::RegI5).map(|x| (MixMachine::reg32_to_i32(x) as i16) + address),
-                6 => self.peek_register(Register::RegI6).map(|x| (MixMachine::reg32_to_i32(x) as i16) + address),
-                _ => Err(MixMachineErr{message: format!("Invalid index_spec for computing effective address: {}", index_spec)}),
-            };
-        effective_address.and_then(|addr| {
+        self.compute_indexed_address(address, index_spec).and_then(|addr| {
             if addr >= 0 {
                 Ok(addr as u16)
             } else {
                 Err(MixMachineErr{message: format!("Computed negative effective address: {}", addr)})
+            }
+        })
+    }
+
+    fn compute_address_to_enter(&self, address: i16, index_spec: u8, negative_address: bool) -> Result<u32, MixMachineErr> {
+        self.compute_indexed_address(address, index_spec).map(|addr| {
+            if address == 0 {
+                // In this case, we need to retain the sign of the index_spec to enter
+                if negative_address { addr as u32 + (1u32 << 30) } else { addr as u32 }
+            } else {
+                if addr <= 0 { addr as u32 + (1u32 << 30) } else { addr as u32 }
             }
         })
     }
@@ -325,6 +338,12 @@ impl MixMachine {
         })
     }
 
+    fn execute_address_transfer(&mut self, op: &AddressOp) -> Result<(), MixMachineErr> {
+        self.compute_address_to_enter(op.address, op.index_spec, op.negative_address).and_then(|addr| {
+            self.poke_register(op.register, addr)
+        })
+    }
+
     pub fn step(&mut self) -> Result<(), MixMachineErr> {
         // Try instruction fetch
         let instruction =
@@ -341,6 +360,7 @@ impl MixMachine {
                 Load(op)  => self.execute_load_op(&op),
                 Store(op) => self.execute_store_op(&op),
                 Arithmetic(op) => self.execute_arithmetic_op(&op),
+                AddressTransfer(op) => self.execute_address_transfer(&op),
                 _         => panic!("Not implemented."),
             }.and_then(|_| {
                 self.program_counter = self.program_counter + 1;

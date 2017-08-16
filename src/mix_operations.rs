@@ -43,6 +43,7 @@ pub struct AddressOp {
     pub address: i16,
     pub negative_address: bool,
     pub index_spec: u8,
+    pub negate_value: bool, // True for ENTNx and DECx instructions
     pub increase: bool  // 'Increase' as opposed to 'enter'.
 }
 
@@ -90,7 +91,14 @@ impl Operation {
             3  => Ok(Arithmetic(ArithOp {op_type: ArithOpType::Multiplication, field: field_spec, address: address, index_spec: index_spec })),
             4  => Ok(Arithmetic(ArithOp {op_type: ArithOpType::Division,       field: field_spec, address: address, index_spec: index_spec })),
             // Address transfer instructions
-            48 => Ok(AddressTransfer(AddressOp {register: RegA, address: address, negative_address: negative_address, index_spec: index_spec, increase: false})),
+            48 => Ok(AddressTransfer(AddressOp {register: RegA,  address: address, negative_address: negative_address, index_spec: index_spec,  negate_value: field_spec % 2u8 != 0u8, increase: field_spec / 2u8 == 0u8})),
+            49 => Ok(AddressTransfer(AddressOp {register: RegI1, address: address, negative_address: negative_address, index_spec: index_spec,  negate_value: field_spec % 2u8 != 0u8, increase: field_spec / 2u8 == 0u8})),
+            50 => Ok(AddressTransfer(AddressOp {register: RegI2, address: address, negative_address: negative_address, index_spec: index_spec,  negate_value: field_spec % 2u8 != 0u8, increase: field_spec / 2u8 == 0u8})),
+            51 => Ok(AddressTransfer(AddressOp {register: RegI3, address: address, negative_address: negative_address, index_spec: index_spec,  negate_value: field_spec % 2u8 != 0u8, increase: field_spec / 2u8 == 0u8})),
+            52 => Ok(AddressTransfer(AddressOp {register: RegI4, address: address, negative_address: negative_address, index_spec: index_spec,  negate_value: field_spec % 2u8 != 0u8, increase: field_spec / 2u8 == 0u8})),
+            53 => Ok(AddressTransfer(AddressOp {register: RegI5, address: address, negative_address: negative_address, index_spec: index_spec,  negate_value: field_spec % 2u8 != 0u8, increase: field_spec / 2u8 == 0u8})),
+            54 => Ok(AddressTransfer(AddressOp {register: RegI6, address: address, negative_address: negative_address, index_spec: index_spec,  negate_value: field_spec % 2u8 != 0u8, increase: field_spec / 2u8 == 0u8})),
+            55 => Ok(AddressTransfer(AddressOp {register: RegX,  address: address, negative_address: negative_address, index_spec: index_spec,  negate_value: field_spec % 2u8 != 0u8, increase: field_spec / 2u8 == 0u8})),
 
             // Unknown (or not implemented)
             _  => Err(())

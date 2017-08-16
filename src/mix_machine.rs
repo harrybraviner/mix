@@ -167,11 +167,12 @@ impl MixMachine {
 
     fn compute_address_to_enter(&self, address: i16, index_spec: u8, negative_address: bool) -> Result<u32, MixMachineErr> {
         self.compute_indexed_address(address, index_spec).map(|addr| {
-            if address == 0 {
+            if addr == 0 {
                 // In this case, we need to retain the sign of the index_spec to enter
-                if negative_address { addr as u32 + (1u32 << 30) } else { addr as u32 }
+                if negative_address { (1u32 << 30) } else { 0u32 }
             } else {
-                if addr <= 0 { addr as u32 + (1u32 << 30) } else { addr as u32 }
+                // Otherwise, we use the sign of the actual result
+                if addr <= 0 { addr.abs() as u32 | (1u32 << 30) } else { addr.abs() as u32 }
             }
         })
     }
@@ -286,19 +287,52 @@ impl MixMachine {
 
     // Take the truncated memory contents and perform the addition into register A
     fn execute_addition(&mut self, v: u32) -> Result<(), MixMachineErr> {
-        self.peek_register(Register::RegA).and_then(|a| {
+        self.execute_addition_general(Register::RegA, v)
+//        self.peek_register(Register::RegA).and_then(|a| {
+//            let signed_a = if a & (1u32 << 30) == 0u32 { a as i32 } else { -1i32*((a - (1u32 << 30)) as i32) };
+//            let signed_v = if v & (1u32 << 30) == 0u32 { v as i32 } else { -1i32*((v - (1u32 << 30)) as i32) };
+//            let signed_result = signed_a + signed_v;    // This calculation can't actually overflow, assuming valid mix registers were passed in
+//            (if signed_result >= (1i32 << 30) || signed_result <= -1i32*(1i32 << 30) { self.set_overflow_toggle() } else { Ok(()) }).and_then(|_| {
+//                let result = if signed_result >= 0i32 {
+//                    // Ensure that the sign bit is cleared in case of (mix) overflow
+//                    (signed_result as u32) & ((1u32 << 30) - 1u32)
+//                } else {
+//                    // Ensure that the sign bit is set in case of (mix) overflow
+//                    ((-1i32*signed_result) as u32)& ((1u32 << 30) - 1u32) | (1u32 << 30)
+//                };
+//                self.poke_register(Register::RegA, result)
+//            })
+//        })
+    }
+
+    // General addition function - needed to support the INCX, INCI1, ..., DECX, ... operations
+    fn execute_addition_general(&mut self, target_reg : Register , v: u32) -> Result<(), MixMachineErr> {
+        self.peek_register(target_reg).and_then(|a| {
             let signed_a = if a & (1u32 << 30) == 0u32 { a as i32 } else { -1i32*((a - (1u32 << 30)) as i32) };
             let signed_v = if v & (1u32 << 30) == 0u32 { v as i32 } else { -1i32*((v - (1u32 << 30)) as i32) };
             let signed_result = signed_a + signed_v;    // This calculation can't actually overflow, assuming valid mix registers were passed in
-            (if signed_result >= (1i32 << 30) || signed_result <= -1i32*(1i32 << 30) { self.set_overflow_toggle() } else { Ok(()) }).and_then(|_| {
+            // Different handling of overflow - overflow on rA or rX sets the toggle,
+            // but on I1, ... I6 the behaviour is undefined.
+            (match target_reg {
+                Register::RegA | Register::RegX => {
+                    (if signed_result >= (1i32 << 30) || signed_result <= -1i32*(1i32 << 30)
+                        { self.set_overflow_toggle() }
+                     else { Ok(()) })
+                },
+                _ => {
+                    (if signed_result >= (1i32 << 12) || signed_result <= -1i32*(1i32 << 12)
+                        { Err(MixMachineErr { message : String::from("Overflow on inc or dec resulted in undefined behaviour!")}) }
+                    else { Ok(()) })
+                },
+            }).and_then(|_| {
                 let result = if signed_result >= 0i32 {
                     // Ensure that the sign bit is cleared in case of (mix) overflow
                     (signed_result as u32) & ((1u32 << 30) - 1u32)
                 } else {
                     // Ensure that the sign bit is set in case of (mix) overflow
-                    ((-1i32*signed_result) as u32)& ((1u32 << 30) - 1u32) | (1u32 << 30)
+                    (((-1i32*signed_result) as u32)& ((1u32 << 30) - 1u32)) | (1u32 << 30)
                 };
-                self.poke_register(Register::RegA, result)
+                self.poke_register(target_reg, result)
             })
         })
     }
@@ -340,7 +374,14 @@ impl MixMachine {
 
     fn execute_address_transfer(&mut self, op: &AddressOp) -> Result<(), MixMachineErr> {
         self.compute_address_to_enter(op.address, op.index_spec, op.negative_address).and_then(|addr| {
-            self.poke_register(op.register, addr)
+            let addr = if op.negate_value { addr + (1u32 << 30) } else { addr };
+            if op.increase {
+                //panic!("Not implemented.")
+                //panic!("addr: {}", addr);
+                self.execute_addition_general(op.register, addr)
+            } else {
+                self.poke_register(op.register, addr)
+            }
         })
     }
 

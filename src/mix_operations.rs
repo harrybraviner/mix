@@ -107,7 +107,14 @@ impl Operation {
             53 => Ok(AddressTransfer(AddressOp {register: RegI5, address: address, negative_address: negative_address, index_spec: index_spec,  negate_value: field_spec % 2u8 != 0u8, increase: field_spec / 2u8 == 0u8})),
             54 => Ok(AddressTransfer(AddressOp {register: RegI6, address: address, negative_address: negative_address, index_spec: index_spec,  negate_value: field_spec % 2u8 != 0u8, increase: field_spec / 2u8 == 0u8})),
             55 => Ok(AddressTransfer(AddressOp {register: RegX,  address: address, negative_address: negative_address, index_spec: index_spec,  negate_value: field_spec % 2u8 != 0u8, increase: field_spec / 2u8 == 0u8})),
-            56 => Ok(Comparison(CompOp {register : RegA, field : field_spec, address: address, index_spec: index_spec})),
+            56 => Ok(Comparison(CompOp {register : RegA,  field : field_spec, address: address, index_spec: index_spec})),
+            57 => Ok(Comparison(CompOp {register : RegI1, field : field_spec, address: address, index_spec: index_spec})),
+            58 => Ok(Comparison(CompOp {register : RegI2, field : field_spec, address: address, index_spec: index_spec})),
+            59 => Ok(Comparison(CompOp {register : RegI3, field : field_spec, address: address, index_spec: index_spec})),
+            60 => Ok(Comparison(CompOp {register : RegI4, field : field_spec, address: address, index_spec: index_spec})),
+            61 => Ok(Comparison(CompOp {register : RegI5, field : field_spec, address: address, index_spec: index_spec})),
+            61 => Ok(Comparison(CompOp {register : RegI6, field : field_spec, address: address, index_spec: index_spec})),
+            63 => Ok(Comparison(CompOp {register : RegX,  field : field_spec, address: address, index_spec: index_spec})),
 
             // Unknown (or not implemented)
             _  => Err(())

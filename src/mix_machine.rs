@@ -4,6 +4,13 @@ use mix_operations::Operation::*;
 const MAX_WORD_VALUE: u32 = (1 << 31) - 1;
 const MEM_SIZE: u16 = 4000;
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum ComparisonState {
+    Less,
+    Greater,
+    Equal,
+}
+
 #[allow(non_snake_case)]    // Allow the register names to conform to Knuth's capitalisation
 pub struct MixMachine {
     register_A: u32,
@@ -16,6 +23,7 @@ pub struct MixMachine {
     register_I6: u16,
     register_J: u16,
     program_counter: u16,   // Not strictly specified in MIX, but needed!
+    comparison_indicator : ComparisonState,
     overflow_toggle_on: bool,
     memory: [u32; MEM_SIZE as usize]
 }
@@ -37,6 +45,7 @@ impl MixMachine {
             register_I5: 0u16, register_I6: 0u16,
             program_counter: 0u16,
             overflow_toggle_on: false,
+            comparison_indicator : ComparisonState::Less,
             register_J: 0u16, memory: [0; MEM_SIZE as usize]
         }
     }
@@ -95,16 +104,25 @@ impl MixMachine {
         })
     }
 
+    pub fn peek_comparison_indicator(&self) -> Result<ComparisonState, MixMachineErr> {
+        Ok(self.comparison_indicator)
+    }
+
+    fn poke_comparison_indicator(&mut self, state : ComparisonState) -> Result<(), MixMachineErr> {
+        self.comparison_indicator = state;
+        Ok(())
+    }
+
     pub fn peek_overflow_toggle(&self) -> Result<bool, MixMachineErr> {
         Ok(self.overflow_toggle_on)
     }
 
-    pub fn set_overflow_toggle(&mut self) -> Result<(), MixMachineErr> {
+    fn set_overflow_toggle(&mut self) -> Result<(), MixMachineErr> {
         self.overflow_toggle_on = true;
         Ok(())
     }
 
-    pub fn clear_overflow_toggle(&mut self) -> Result<(), MixMachineErr> {
+    fn clear_overflow_toggle(&mut self) -> Result<(), MixMachineErr> {
         self.overflow_toggle_on = false;
         Ok(())
     }
@@ -288,21 +306,6 @@ impl MixMachine {
     // Take the truncated memory contents and perform the addition into register A
     fn execute_addition(&mut self, v: u32) -> Result<(), MixMachineErr> {
         self.execute_addition_general(Register::RegA, v)
-//        self.peek_register(Register::RegA).and_then(|a| {
-//            let signed_a = if a & (1u32 << 30) == 0u32 { a as i32 } else { -1i32*((a - (1u32 << 30)) as i32) };
-//            let signed_v = if v & (1u32 << 30) == 0u32 { v as i32 } else { -1i32*((v - (1u32 << 30)) as i32) };
-//            let signed_result = signed_a + signed_v;    // This calculation can't actually overflow, assuming valid mix registers were passed in
-//            (if signed_result >= (1i32 << 30) || signed_result <= -1i32*(1i32 << 30) { self.set_overflow_toggle() } else { Ok(()) }).and_then(|_| {
-//                let result = if signed_result >= 0i32 {
-//                    // Ensure that the sign bit is cleared in case of (mix) overflow
-//                    (signed_result as u32) & ((1u32 << 30) - 1u32)
-//                } else {
-//                    // Ensure that the sign bit is set in case of (mix) overflow
-//                    ((-1i32*signed_result) as u32)& ((1u32 << 30) - 1u32) | (1u32 << 30)
-//                };
-//                self.poke_register(Register::RegA, result)
-//            })
-//        })
     }
 
     // General addition function - needed to support the INCX, INCI1, ..., DECX, ... operations
@@ -376,13 +379,29 @@ impl MixMachine {
         self.compute_address_to_enter(op.address, op.index_spec, op.negative_address).and_then(|addr| {
             let addr = if op.negate_value { addr + (1u32 << 30) } else { addr };
             if op.increase {
-                //panic!("Not implemented.")
-                //panic!("addr: {}", addr);
                 self.execute_addition_general(op.register, addr)
             } else {
                 self.poke_register(op.register, addr)
             }
         })
+    }
+
+    fn execute_comparison_op(&mut self, op: &CompOp) -> Result<(), MixMachineErr> {
+        
+        // Note: turning the registers into i32s is fine, since -0 and +0 are treated as Equal
+        let effective_address = self.compute_effective_address(op.address, op.index_spec)?;
+        let contents = self.peek_memory(effective_address)?;
+        let truncated_contents = MixMachine::reg32_to_i32(MixMachine::truncate_to_field(contents, op.field)?);
+        let register_value = self.peek_register(op.register)?;
+        let truncated_register = MixMachine::reg32_to_i32(MixMachine::truncate_to_field(register_value, op.field)?);
+
+        if truncated_register < truncated_contents {
+            self.poke_comparison_indicator(ComparisonState::Less)
+        } else if truncated_register > truncated_contents  {
+            self.poke_comparison_indicator(ComparisonState::Greater)
+        } else {
+            self.poke_comparison_indicator(ComparisonState::Equal)
+        }
     }
 
     pub fn step(&mut self) -> Result<(), MixMachineErr> {
@@ -402,6 +421,7 @@ impl MixMachine {
                 Store(op) => self.execute_store_op(&op),
                 Arithmetic(op) => self.execute_arithmetic_op(&op),
                 AddressTransfer(op) => self.execute_address_transfer(&op),
+                Comparison(op) => self.execute_comparison_op(&op),
                 _         => panic!("Not implemented."),
             }.and_then(|_| {
                 self.program_counter = self.program_counter + 1;

@@ -47,12 +47,20 @@ pub struct AddressOp {
     pub increase: bool  // 'Increase' as opposed to 'enter'.
 }
 
+pub struct CompOp {
+    pub register : Register,
+    pub field : u8,
+    pub address : i16,
+    pub index_spec : u8,
+}
+
+
 impl Operation {
     pub fn from_u32(instruction: u32) -> Result<Operation, ()> {
         let op_code: u8    = ( instruction        % 64u32) as u8;
         let field_spec: u8 = ((instruction >> 6 ) % 64u32) as u8;
         let index_spec: u8 = ((instruction >> 12) % 64u32) as u8;
-        let negative_address: bool = instruction & (1u32 << 30) != 0;
+        let negative_address: bool = instruction & (1u32 << 30) != 0;   // Need to distinguish between +0 and -0 in some cases
         let address: i16   = ((instruction >> 18) % 4096u32) as i16 * (if negative_address { -1i16 } else { 1i16 });
         
         match op_code {
@@ -99,6 +107,7 @@ impl Operation {
             53 => Ok(AddressTransfer(AddressOp {register: RegI5, address: address, negative_address: negative_address, index_spec: index_spec,  negate_value: field_spec % 2u8 != 0u8, increase: field_spec / 2u8 == 0u8})),
             54 => Ok(AddressTransfer(AddressOp {register: RegI6, address: address, negative_address: negative_address, index_spec: index_spec,  negate_value: field_spec % 2u8 != 0u8, increase: field_spec / 2u8 == 0u8})),
             55 => Ok(AddressTransfer(AddressOp {register: RegX,  address: address, negative_address: negative_address, index_spec: index_spec,  negate_value: field_spec % 2u8 != 0u8, increase: field_spec / 2u8 == 0u8})),
+            56 => Ok(Comparison(CompOp {register : RegA, field : field_spec, address: address, index_spec: index_spec})),
 
             // Unknown (or not implemented)
             _  => Err(())
@@ -114,8 +123,6 @@ impl Operation {
         sgn_bit + ((address as u32) << 18) + ((index_spec as u32) << 12) + ((field_spec as u32) << 6) + (op_code as u32)
     }
 }
-
-pub enum CompOp { CMPA, CMPX, CMP1, CMP2, CMP3, CMP4, CMP5, CMP6 }
 
 pub enum JumpOp { JMP, JSJ, JOV, JNOV, JL, JE, JG, JGE, JNE, JLE,
               JAN, JAZ, JAP, JANN, JANZ, JANP,

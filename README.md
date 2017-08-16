@@ -14,8 +14,6 @@ The I1, I2, ..., I6 and J registers are 13 bits wide, and are stored as `u16`.
 
 # ToDo
 
-* Add comperhensive tests for store operations.
-* Add address transfer operations.
 * Add comparison operations.
 * Add jump operations.
 * Refactor code s.t. the register branches are less biolerplate.

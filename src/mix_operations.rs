@@ -54,6 +54,12 @@ pub struct CompOp {
     pub index_spec : u8,
 }
 
+pub struct JumpOp {
+    pub register : Option<Register>,
+    pub address : i16,
+    pub index_spec : u8,
+    pub field : u8,
+}
 
 impl Operation {
     pub fn from_u32(instruction: u32) -> Result<Operation, ()> {
@@ -115,6 +121,7 @@ impl Operation {
             61 => Ok(Comparison(CompOp {register : RegI5, field : field_spec, address: address, index_spec: index_spec})),
             61 => Ok(Comparison(CompOp {register : RegI6, field : field_spec, address: address, index_spec: index_spec})),
             63 => Ok(Comparison(CompOp {register : RegX,  field : field_spec, address: address, index_spec: index_spec})),
+            39 => Ok(Jump(JumpOp {register : None, address : address, index_spec : index_spec, field : field_spec})),
 
             // Unknown (or not implemented)
             _  => Err(())
@@ -130,16 +137,3 @@ impl Operation {
         sgn_bit + ((address as u32) << 18) + ((index_spec as u32) << 12) + ((field_spec as u32) << 6) + (op_code as u32)
     }
 }
-
-pub enum JumpOp { JMP, JSJ, JOV, JNOV, JL, JE, JG, JGE, JNE, JLE,
-              JAN, JAZ, JAP, JANN, JANZ, JANP,
-              JXN, JXZ, JXP, JXNN, JXNZ, JXNP,
-              J1N, J1Z, J1P, J1NN, J1NZ, J1NP,
-              J2N, J2Z, J2P, J2NN, J2NZ, J2NP,
-              J3N, J3Z, J3P, J3NN, J3NZ, J3NP,
-              J4N, J4Z, J4P, J4NN, J4NZ, J4NP,
-              J5N, J5Z, J5P, J5NN, J5NZ, J5NP,
-              J6N, J6Z, J6P, J6NN, J6NZ, J6NP }
-
-              // FIXME - still need to add the Miscellaneous operators
-    

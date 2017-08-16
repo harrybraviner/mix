@@ -404,6 +404,17 @@ impl MixMachine {
         }
     }
 
+    fn execute_jump_op(&mut self, op: &JumpOp) -> Result<(), MixMachineErr> {
+        let target = self.compute_effective_address(op.address, op.index_spec)?;
+        if op.field != 1 {
+            // Recall that we *already* incremented after the instruction fetch
+            let counter = self.program_counter as u32;
+            self.poke_register(Register::RegJ, counter)?
+        }
+        self.program_counter = target;
+        Ok(())
+    }
+
     pub fn step(&mut self) -> Result<(), MixMachineErr> {
         // Try instruction fetch
         let instruction =
@@ -412,6 +423,7 @@ impl MixMachine {
             } else {
                 Err(MixMachineErr{message: format!("Attempted instruction fetch from invalid memory address {}.", self.program_counter)})
             };
+        self.program_counter = self.program_counter + 1;    // Need to increment now, since we may modify this in a jump op
         instruction.and_then(|instruction| {
             let op = Operation::from_u32(instruction);
             op.or_else(|_| Err(MixMachineErr{message: format!("Unknown or unimplemeted instruction: {}", instruction)}))
@@ -422,11 +434,9 @@ impl MixMachine {
                 Arithmetic(op) => self.execute_arithmetic_op(&op),
                 AddressTransfer(op) => self.execute_address_transfer(&op),
                 Comparison(op) => self.execute_comparison_op(&op),
+                Jump(op) => self.execute_jump_op(&op),
                 _         => panic!("Not implemented."),
-            }.and_then(|_| {
-                self.program_counter = self.program_counter + 1;
-                Ok(())
-            })
+            }
         })
     }
 }

@@ -406,12 +406,23 @@ impl MixMachine {
 
     fn execute_jump_op(&mut self, op: &JumpOp) -> Result<(), MixMachineErr> {
         let target = self.compute_effective_address(op.address, op.index_spec)?;
+        // Update rJ unless instruction was JSJ
         if op.field != 1 {
             // Recall that we *already* incremented after the instruction fetch
             let counter = self.program_counter as u32;
             self.poke_register(Register::RegJ, counter)?
         }
-        self.program_counter = target;
+        match op.field {
+            0 | 1 => { self.program_counter = target; },
+            2 | 3 => { 
+                let overflow = self.peek_overflow_toggle()?;
+                if (op.field == 2 && overflow) || (op.field == 3 && !overflow) {
+                    self.program_counter = target;
+                }
+                if overflow { self.clear_overflow_toggle(); }
+            },
+            _ => panic!("Not implemented!"),
+        }
         Ok(())
     }
 

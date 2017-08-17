@@ -421,7 +421,25 @@ impl MixMachine {
                 }
                 if overflow { self.clear_overflow_toggle(); }
             },
-            _ => panic!("Not implemented!"),
+            4 => { if self.peek_comparison_indicator() == Ok(ComparisonState::Less) {
+                    self.program_counter = target; }},
+            5 => { if self.peek_comparison_indicator() == Ok(ComparisonState::Equal) {
+                    self.program_counter = target; }},
+            6 => { if self.peek_comparison_indicator() == Ok(ComparisonState::Greater) {
+                    self.program_counter = target; }},
+            7 => { let c = self.peek_comparison_indicator();
+                   if c == Ok(ComparisonState::Greater) || c == Ok(ComparisonState::Equal) {
+                       self.program_counter = target;
+                   }},
+            8 => { let c = self.peek_comparison_indicator();
+                   if c == Ok(ComparisonState::Greater) || c == Ok(ComparisonState::Less) {
+                       self.program_counter = target;
+                   }},
+            9 => { let c = self.peek_comparison_indicator();
+                   if c == Ok(ComparisonState::Less) || c == Ok(ComparisonState::Equal) {
+                       self.program_counter = target;
+                   }},
+            _ => panic!("Invalid field spec in jump op. Should be impossible."),
         }
         Ok(())
     }

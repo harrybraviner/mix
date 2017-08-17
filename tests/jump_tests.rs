@@ -88,3 +88,201 @@ fn jump_no_overflow() {
     assert_eq!(mix_machine.peek_register(Register::RegA), Ok(20u32));   // Check that the appropriate value was loaded
 }
 
+#[test]
+fn jump_less() {
+    let mut mix_machine = MixMachine::new();
+    assert_eq!(mix_machine.poke_memory(0u16, Operation::make_instruction(true, 10u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 10
+    assert_eq!(mix_machine.poke_memory(100u16, 11u32), Ok(())); // Put 11 into location 100
+    assert_eq!(mix_machine.poke_memory(1u16, Operation::make_instruction(true, 100u16, 0u8, 5u8, 56u8)), Ok(())); // CMPA 100
+    assert_eq!(mix_machine.poke_memory(2u16, Operation::make_instruction(true, 4u16, 0u8, 4u8, 39u8)), Ok(())); // JL 4
+    assert_eq!(mix_machine.poke_memory(3u16, Operation::make_instruction(true, 50u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 50
+    assert_eq!(mix_machine.poke_memory(4u16, Operation::make_instruction(true, 60u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 60
+    assert_eq!(mix_machine.poke_memory(5u16, Operation::make_instruction(true, 100u16, 0u8, 5u8, 56u8)), Ok(())); // CMPA 100
+    assert_eq!(mix_machine.poke_memory(6u16, Operation::make_instruction(true, 4u16, 0u8, 4u8, 39u8)), Ok(())); // JL 4
+    assert_eq!(mix_machine.poke_memory(7u16, Operation::make_instruction(true, 11u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 11
+    assert_eq!(mix_machine.poke_memory(8u16, Operation::make_instruction(true, 100u16, 0u8, 5u8, 56u8)), Ok(())); // CMPA 100
+    assert_eq!(mix_machine.poke_memory(9u16, Operation::make_instruction(true, 4u16, 0u8, 4u8, 39u8)), Ok(())); // JL 4
+    assert_eq!(mix_machine.poke_memory(10u16, Operation::make_instruction(true, 12u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 12
+
+    assert_eq!(mix_machine.step(), Ok(())); // Enter 10 into rA
+    assert_eq!(mix_machine.step(), Ok(())); // Comparison - should produce Less
+    assert_eq!(mix_machine.peek_comparison_indicator(), Ok(ComparisonState::Less));
+    assert_eq!(mix_machine.step(), Ok(())); // Jump - should jump to 4
+    assert_eq!(mix_machine.step(), Ok(())); // ENTA 60
+    assert_eq!(mix_machine.peek_register(Register::RegA), Ok(60u32));
+    assert_eq!(mix_machine.step(), Ok(())); // Comparison - should produce Greater
+    assert_eq!(mix_machine.peek_comparison_indicator(), Ok(ComparisonState::Greater));
+    assert_eq!(mix_machine.step(), Ok(())); // JL4 - should not jump this time
+    assert_eq!(mix_machine.step(), Ok(())); // ENTA 11
+    assert_eq!(mix_machine.step(), Ok(())); // Comparison - should produce Equal
+    assert_eq!(mix_machine.peek_comparison_indicator(), Ok(ComparisonState::Equal));
+    assert_eq!(mix_machine.step(), Ok(())); // JL4 - should not jump this time
+    assert_eq!(mix_machine.step(), Ok(())); // ENTA 12
+    assert_eq!(mix_machine.peek_register(Register::RegA), Ok(12u32));
+}
+
+#[test]
+fn jump_equal() {
+    let mut mix_machine = MixMachine::new();
+    assert_eq!(mix_machine.poke_memory(0u16, Operation::make_instruction(true, 10u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 10
+    assert_eq!(mix_machine.poke_memory(100u16, 10u32), Ok(())); // Put 10 into location 100
+    assert_eq!(mix_machine.poke_memory(1u16, Operation::make_instruction(true, 100u16, 0u8, 5u8, 56u8)), Ok(())); // CMPA 100
+    assert_eq!(mix_machine.poke_memory(2u16, Operation::make_instruction(true, 4u16, 0u8, 5u8, 39u8)), Ok(())); // JE 4
+    assert_eq!(mix_machine.poke_memory(3u16, Operation::make_instruction(true, 50u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 50
+    assert_eq!(mix_machine.poke_memory(4u16, Operation::make_instruction(true, 60u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 60
+    assert_eq!(mix_machine.poke_memory(5u16, Operation::make_instruction(true, 100u16, 0u8, 5u8, 56u8)), Ok(())); // CMPA 100
+    assert_eq!(mix_machine.poke_memory(6u16, Operation::make_instruction(true, 4u16, 0u8, 5u8, 39u8)), Ok(())); // JE 4
+    assert_eq!(mix_machine.poke_memory(7u16, Operation::make_instruction(true, 9u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 9
+    assert_eq!(mix_machine.poke_memory(8u16, Operation::make_instruction(true, 100u16, 0u8, 5u8, 56u8)), Ok(())); // CMPA 100
+    assert_eq!(mix_machine.poke_memory(9u16, Operation::make_instruction(true, 4u16, 0u8, 5u8, 39u8)), Ok(())); // JE 4
+    assert_eq!(mix_machine.poke_memory(10u16, Operation::make_instruction(true, 12u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 12
+
+    assert_eq!(mix_machine.step(), Ok(())); // Enter 10 into rA
+    assert_eq!(mix_machine.step(), Ok(())); // Comparison - should produce Equal
+    assert_eq!(mix_machine.peek_comparison_indicator(), Ok(ComparisonState::Equal));
+    assert_eq!(mix_machine.step(), Ok(())); // Jump - should jump to 4
+    assert_eq!(mix_machine.step(), Ok(())); // ENTA 60
+    assert_eq!(mix_machine.peek_register(Register::RegA), Ok(60u32));
+    assert_eq!(mix_machine.step(), Ok(())); // Comparison - should produce Greater
+    assert_eq!(mix_machine.peek_comparison_indicator(), Ok(ComparisonState::Greater));
+    assert_eq!(mix_machine.step(), Ok(())); // JE4 - should not jump this time
+    assert_eq!(mix_machine.step(), Ok(())); // ENTA 9
+    assert_eq!(mix_machine.step(), Ok(())); // Comparison - should produce Less
+    assert_eq!(mix_machine.peek_comparison_indicator(), Ok(ComparisonState::Less));
+    assert_eq!(mix_machine.step(), Ok(())); // JE4 - should not jump this time
+    assert_eq!(mix_machine.step(), Ok(())); // ENTA 12
+    assert_eq!(mix_machine.peek_register(Register::RegA), Ok(12u32));
+}
+
+#[test]
+fn jump_greater() {
+    let mut mix_machine = MixMachine::new();
+    assert_eq!(mix_machine.poke_memory(0u16, Operation::make_instruction(true, 10u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 10
+    assert_eq!(mix_machine.poke_memory(100u16, 9u32), Ok(())); // Put 9 into location 100
+    assert_eq!(mix_machine.poke_memory(1u16, Operation::make_instruction(true, 100u16, 0u8, 5u8, 56u8)), Ok(())); // CMPA 100
+    assert_eq!(mix_machine.poke_memory(2u16, Operation::make_instruction(true, 4u16, 0u8, 6u8, 39u8)), Ok(())); // JG 4
+    assert_eq!(mix_machine.poke_memory(3u16, Operation::make_instruction(true, 50u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 50
+    assert_eq!(mix_machine.poke_memory(4u16, Operation::make_instruction(true, 2u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 2
+    assert_eq!(mix_machine.poke_memory(5u16, Operation::make_instruction(true, 100u16, 0u8, 5u8, 56u8)), Ok(())); // CMPA 100
+    assert_eq!(mix_machine.poke_memory(6u16, Operation::make_instruction(true, 4u16, 0u8, 6u8, 39u8)), Ok(())); // JG 4
+    assert_eq!(mix_machine.poke_memory(7u16, Operation::make_instruction(true, 9u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 9
+    assert_eq!(mix_machine.poke_memory(8u16, Operation::make_instruction(true, 100u16, 0u8, 5u8, 56u8)), Ok(())); // CMPA 100
+    assert_eq!(mix_machine.poke_memory(9u16, Operation::make_instruction(true, 4u16, 0u8, 6u8, 39u8)), Ok(())); // JG 4
+    assert_eq!(mix_machine.poke_memory(10u16, Operation::make_instruction(true, 12u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 12
+
+    assert_eq!(mix_machine.step(), Ok(())); // Enter 10 into rA
+    assert_eq!(mix_machine.step(), Ok(())); // Comparison - should produce Greater
+    assert_eq!(mix_machine.peek_comparison_indicator(), Ok(ComparisonState::Greater));
+    assert_eq!(mix_machine.step(), Ok(())); // Jump - should jump to 4
+    assert_eq!(mix_machine.step(), Ok(())); // ENTA 2
+    assert_eq!(mix_machine.peek_register(Register::RegA), Ok(2u32));
+    assert_eq!(mix_machine.step(), Ok(())); // Comparison - should produce Less
+    assert_eq!(mix_machine.peek_comparison_indicator(), Ok(ComparisonState::Less));
+    assert_eq!(mix_machine.step(), Ok(())); // JG4 - should not jump this time
+    assert_eq!(mix_machine.step(), Ok(())); // ENTA 9
+    assert_eq!(mix_machine.step(), Ok(())); // Comparison - should produce Equal
+    assert_eq!(mix_machine.peek_comparison_indicator(), Ok(ComparisonState::Equal));
+    assert_eq!(mix_machine.step(), Ok(())); // JG4 - should not jump this time
+    assert_eq!(mix_machine.step(), Ok(())); // ENTA 12
+    assert_eq!(mix_machine.peek_register(Register::RegA), Ok(12u32));
+}
+
+#[test]
+fn jump_greater_or_equal() {
+    let mut mix_machine = MixMachine::new();
+    assert_eq!(mix_machine.poke_memory(0u16, Operation::make_instruction(true, 10u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 10
+    assert_eq!(mix_machine.poke_memory(100u16, 10u32), Ok(())); // Put 10 into location 100
+    assert_eq!(mix_machine.poke_memory(1u16, Operation::make_instruction(true, 100u16, 0u8, 5u8, 56u8)), Ok(())); // CMPA 100
+    assert_eq!(mix_machine.poke_memory(2u16, Operation::make_instruction(true, 4u16, 0u8, 7u8, 39u8)), Ok(())); // JGE 4
+    assert_eq!(mix_machine.poke_memory(3u16, Operation::make_instruction(true, 50u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 50
+    assert_eq!(mix_machine.poke_memory(4u16, Operation::make_instruction(true, 5u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 5
+    assert_eq!(mix_machine.poke_memory(5u16, Operation::make_instruction(true, 100u16, 0u8, 5u8, 56u8)), Ok(())); // CMPA 100
+    assert_eq!(mix_machine.poke_memory(6u16, Operation::make_instruction(true, 4u16, 0u8, 7u8, 39u8)), Ok(())); // JGE 4
+    assert_eq!(mix_machine.poke_memory(7u16, Operation::make_instruction(true, 10u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 10
+    assert_eq!(mix_machine.poke_memory(8u16, Operation::make_instruction(true, 100u16, 0u8, 5u8, 56u8)), Ok(())); // CMPA 100
+    assert_eq!(mix_machine.poke_memory(9u16, Operation::make_instruction(true, 4u16, 0u8, 7u8, 39u8)), Ok(())); // JGE 4
+    assert_eq!(mix_machine.poke_memory(10u16, Operation::make_instruction(true, 12u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 12
+
+    assert_eq!(mix_machine.step(), Ok(())); // Enter 10 into rA
+    assert_eq!(mix_machine.step(), Ok(())); // Comparison - should produce Equal
+    assert_eq!(mix_machine.peek_comparison_indicator(), Ok(ComparisonState::Equal));
+    assert_eq!(mix_machine.step(), Ok(())); // Jump - should jump to 4
+    assert_eq!(mix_machine.step(), Ok(())); // ENTA 5
+    assert_eq!(mix_machine.peek_register(Register::RegA), Ok(5u32));
+    assert_eq!(mix_machine.step(), Ok(())); // Comparison - should produce Less
+    assert_eq!(mix_machine.peek_comparison_indicator(), Ok(ComparisonState::Less));
+    assert_eq!(mix_machine.step(), Ok(())); // JGE4 - should not jump this time
+    assert_eq!(mix_machine.step(), Ok(())); // ENTA 10
+    assert_eq!(mix_machine.step(), Ok(())); // Comparison - should produce Equal
+    assert_eq!(mix_machine.peek_comparison_indicator(), Ok(ComparisonState::Equal));
+    assert_eq!(mix_machine.step(), Ok(())); // JGE4 - should jump
+    assert_eq!(mix_machine.step(), Ok(())); // ENTA 5
+    assert_eq!(mix_machine.peek_register(Register::RegA), Ok(5u32));
+}
+
+#[test]
+fn jump_not_equal() {
+    let mut mix_machine = MixMachine::new();
+    assert_eq!(mix_machine.poke_memory(0u16, Operation::make_instruction(true, 20u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 20
+    assert_eq!(mix_machine.poke_memory(100u16, 11u32), Ok(())); // Put 11 into location 100
+    assert_eq!(mix_machine.poke_memory(1u16, Operation::make_instruction(true, 100u16, 0u8, 5u8, 56u8)), Ok(())); // CMPA 100
+    assert_eq!(mix_machine.poke_memory(2u16, Operation::make_instruction(true, 4u16, 0u8, 8u8, 39u8)), Ok(())); // JNE 4
+    assert_eq!(mix_machine.poke_memory(3u16, Operation::make_instruction(true, 50u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 50
+    assert_eq!(mix_machine.poke_memory(4u16, Operation::make_instruction(true, 11u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 11
+    assert_eq!(mix_machine.poke_memory(5u16, Operation::make_instruction(true, 100u16, 0u8, 5u8, 56u8)), Ok(())); // CMPA 100
+    assert_eq!(mix_machine.poke_memory(6u16, Operation::make_instruction(true, 4u16, 0u8, 8u8, 39u8)), Ok(())); // JNE 4
+    assert_eq!(mix_machine.poke_memory(7u16, Operation::make_instruction(true, 10u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 10
+    assert_eq!(mix_machine.poke_memory(8u16, Operation::make_instruction(true, 100u16, 0u8, 5u8, 56u8)), Ok(())); // CMPA 100
+    assert_eq!(mix_machine.poke_memory(9u16, Operation::make_instruction(true, 4u16, 0u8, 8u8, 39u8)), Ok(())); // JNE 4
+    assert_eq!(mix_machine.poke_memory(10u16, Operation::make_instruction(true, 12u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 12
+
+    assert_eq!(mix_machine.step(), Ok(())); // Enter 20 into rA
+    assert_eq!(mix_machine.step(), Ok(())); // Comparison - should produce Greater
+    assert_eq!(mix_machine.peek_comparison_indicator(), Ok(ComparisonState::Greater));
+    assert_eq!(mix_machine.step(), Ok(())); // Jump - should jump to 4
+    assert_eq!(mix_machine.step(), Ok(())); // ENTA 11
+    assert_eq!(mix_machine.peek_register(Register::RegA), Ok(11u32));
+    assert_eq!(mix_machine.step(), Ok(())); // Comparison - should produce Equal
+    assert_eq!(mix_machine.peek_comparison_indicator(), Ok(ComparisonState::Equal));
+    assert_eq!(mix_machine.step(), Ok(())); // JNE4 - should not jump this time
+    assert_eq!(mix_machine.step(), Ok(())); // ENTA 10
+    assert_eq!(mix_machine.step(), Ok(())); // Comparison - should produce Less
+    assert_eq!(mix_machine.peek_comparison_indicator(), Ok(ComparisonState::Less));
+    assert_eq!(mix_machine.step(), Ok(())); // JNE4 - should jump
+    assert_eq!(mix_machine.step(), Ok(())); // ENTA 11
+    assert_eq!(mix_machine.peek_register(Register::RegA), Ok(11u32));
+}
+
+#[test]
+fn jump_less_or_equal() {
+    let mut mix_machine = MixMachine::new();
+    assert_eq!(mix_machine.poke_memory(0u16, Operation::make_instruction(true, 11u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 11
+    assert_eq!(mix_machine.poke_memory(100u16, 11u32), Ok(())); // Put 11 into location 100
+    assert_eq!(mix_machine.poke_memory(1u16, Operation::make_instruction(true, 100u16, 0u8, 5u8, 56u8)), Ok(())); // CMPA 100
+    assert_eq!(mix_machine.poke_memory(2u16, Operation::make_instruction(true, 4u16, 0u8, 9u8, 39u8)), Ok(())); // JLE 4
+    assert_eq!(mix_machine.poke_memory(3u16, Operation::make_instruction(true, 50u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 50
+    assert_eq!(mix_machine.poke_memory(4u16, Operation::make_instruction(true, 20u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 20
+    assert_eq!(mix_machine.poke_memory(5u16, Operation::make_instruction(true, 100u16, 0u8, 5u8, 56u8)), Ok(())); // CMPA 100
+    assert_eq!(mix_machine.poke_memory(6u16, Operation::make_instruction(true, 4u16, 0u8, 9u8, 39u8)), Ok(())); // JLE 4
+    assert_eq!(mix_machine.poke_memory(7u16, Operation::make_instruction(true, 10u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 10
+    assert_eq!(mix_machine.poke_memory(8u16, Operation::make_instruction(true, 100u16, 0u8, 5u8, 56u8)), Ok(())); // CMPA 100
+    assert_eq!(mix_machine.poke_memory(9u16, Operation::make_instruction(true, 4u16, 0u8, 9u8, 39u8)), Ok(())); // JLE 4
+    assert_eq!(mix_machine.poke_memory(10u16, Operation::make_instruction(true, 12u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 12
+
+    assert_eq!(mix_machine.step(), Ok(())); // Enter 11 into rA
+    assert_eq!(mix_machine.step(), Ok(())); // Comparison - should produce Equal
+    assert_eq!(mix_machine.peek_comparison_indicator(), Ok(ComparisonState::Equal));
+    assert_eq!(mix_machine.step(), Ok(())); // Jump - should jump to 4
+    assert_eq!(mix_machine.step(), Ok(())); // ENTA 2
+    assert_eq!(mix_machine.peek_register(Register::RegA), Ok(20u32));
+    assert_eq!(mix_machine.step(), Ok(())); // Comparison - should produce Greater
+    assert_eq!(mix_machine.peek_comparison_indicator(), Ok(ComparisonState::Greater));
+    assert_eq!(mix_machine.step(), Ok(())); // JLE4 - should not jump this time
+    assert_eq!(mix_machine.step(), Ok(())); // ENTA 10
+    assert_eq!(mix_machine.step(), Ok(())); // Comparison - should produce Less
+    assert_eq!(mix_machine.peek_comparison_indicator(), Ok(ComparisonState::Less));
+    assert_eq!(mix_machine.step(), Ok(())); // JLE4 - should jump
+    assert_eq!(mix_machine.step(), Ok(())); // ENTA 20
+    assert_eq!(mix_machine.peek_register(Register::RegA), Ok(20u32));
+}
+

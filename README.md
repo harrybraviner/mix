@@ -14,8 +14,10 @@ The I1, I2, ..., I6 and J registers are 13 bits wide, and are stored as `u16`.
 
 # ToDo
 
-* Add comparison operations.
-* Add jump operations.
+* Refactor to remove the Result< , > wrapper on some of the internal calls that never fail.
+ (And possibly on ones where failure is an error of the mix machine).
+* Add shift operations.
+* Add peripherals.
 * Refactor code s.t. the register branches are less biolerplate.
-* Refactor the 'helper functions' to convert from 5 byte to 2 byte registers etc. into separate helper classes.
+* Refactor the 'helper functions' to convert from 5 byte to 2 byte registers etc. into separate helper module.
 * Add print functionality for the registers? As a helper function?

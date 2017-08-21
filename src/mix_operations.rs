@@ -122,6 +122,14 @@ impl Operation {
             61 => Ok(Comparison(CompOp {register : RegI6, field : field_spec, address: address, index_spec: index_spec})),
             63 => Ok(Comparison(CompOp {register : RegX,  field : field_spec, address: address, index_spec: index_spec})),
             39 => Ok(Jump(JumpOp {register : None, address : address, index_spec : index_spec, field : field_spec})),
+            40 => Ok(Jump(JumpOp {register : Some(Register::RegA), address : address, index_spec : index_spec, field : field_spec})),
+            47 => Ok(Jump(JumpOp {register : Some(Register::RegX), address : address, index_spec : index_spec, field : field_spec})),
+            41 => Ok(Jump(JumpOp {register : Some(Register::RegI1), address : address, index_spec : index_spec, field : field_spec})),
+            42 => Ok(Jump(JumpOp {register : Some(Register::RegI2), address : address, index_spec : index_spec, field : field_spec})),
+            43 => Ok(Jump(JumpOp {register : Some(Register::RegI3), address : address, index_spec : index_spec, field : field_spec})),
+            44 => Ok(Jump(JumpOp {register : Some(Register::RegI4), address : address, index_spec : index_spec, field : field_spec})),
+            45 => Ok(Jump(JumpOp {register : Some(Register::RegI5), address : address, index_spec : index_spec, field : field_spec})),
+            46 => Ok(Jump(JumpOp {register : Some(Register::RegI6), address : address, index_spec : index_spec, field : field_spec})),
 
             // Unknown (or not implemented)
             _  => Err(())

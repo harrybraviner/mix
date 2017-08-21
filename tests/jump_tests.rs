@@ -286,3 +286,84 @@ fn jump_less_or_equal() {
     assert_eq!(mix_machine.peek_register(Register::RegA), Ok(20u32));
 }
 
+// Tests below here (for sign of registers) are less extensive
+// since there's considerable code re-use with the above.
+
+#[test]
+fn jump_a_negative() {
+    let mut mix_machine = MixMachine::new();
+    assert_eq!(mix_machine.poke_register(Register::RegA, 10u32), Ok(()));
+    assert_eq!(mix_machine.poke_memory(0u16, Operation::make_instruction(true, 2u16, 0u8, 0u8, 40u8)), Ok(())); // JAN 2
+    assert_eq!(mix_machine.poke_memory(1u16, Operation::make_instruction(true, 10u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 10
+    assert_eq!(mix_machine.poke_memory(2u16, Operation::make_instruction(true, 20u16, 0u8, 3u8, 48u8)), Ok(())); // ENNA 20
+    assert_eq!(mix_machine.poke_memory(3u16, Operation::make_instruction(true, 5u16, 0u8, 0u8, 40u8)), Ok(())); // JAN 5
+    assert_eq!(mix_machine.poke_memory(4u16, Operation::make_instruction(true, 30u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 10
+    assert_eq!(mix_machine.poke_memory(5u16, Operation::make_instruction(true, 0u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 0
+    assert_eq!(mix_machine.poke_memory(6u16, Operation::make_instruction(true, 2u16, 0u8, 0u8, 40u8)), Ok(())); // JAN 2
+    assert_eq!(mix_machine.poke_memory(7u16, Operation::make_instruction(true, 5u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 5
+
+    assert_eq!(mix_machine.step(), Ok(())); // JAN 2 - should not jump since A is positive
+    assert_eq!(mix_machine.step(), Ok(())); // ENTA 10
+    assert_eq!(mix_machine.peek_register(Register::RegA), Ok(10u32));
+    assert_eq!(mix_machine.step(), Ok(())); // ENNA 20 (i.e. -20)
+    assert_eq!(mix_machine.step(), Ok(())); // JAN 5
+    assert_eq!(mix_machine.step(), Ok(())); // ENTA 0
+    assert_eq!(mix_machine.peek_register(Register::RegA), Ok(0u32));
+    assert_eq!(mix_machine.step(), Ok(())); // JAN 2 - should not jump since A is zero
+    assert_eq!(mix_machine.step(), Ok(())); // ENTA 5
+    assert_eq!(mix_machine.peek_register(Register::RegA), Ok(5u32));
+}
+
+#[test]
+fn jump_x_positive() {
+    let mut mix_machine = MixMachine::new();
+    assert_eq!(mix_machine.poke_register(Register::RegX, 10u32), Ok(()));
+    assert_eq!(mix_machine.poke_memory(0u16, Operation::make_instruction(true, 2u16, 0u8, 2u8, 47u8)), Ok(())); // JXP 2
+    assert_eq!(mix_machine.poke_memory(1u16, Operation::make_instruction(true, 10u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 10
+    assert_eq!(mix_machine.poke_memory(2u16, Operation::make_instruction(true, 20u16, 0u8, 3u8, 48u8)), Ok(())); // ENNA 20
+    assert_eq!(mix_machine.poke_memory(3u16, Operation::make_instruction(true, 20u16, 0u8, 3u8, 55u8)), Ok(())); // ENNX 20
+    assert_eq!(mix_machine.poke_memory(4u16, Operation::make_instruction(true, 5u16, 0u8, 2u8, 47u8)), Ok(())); // JXP 6
+    assert_eq!(mix_machine.poke_memory(5u16, Operation::make_instruction(true, 10u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 10
+    assert_eq!(mix_machine.poke_memory(6u16, Operation::make_instruction(true, 0u16, 0u8, 2u8, 55u8)), Ok(())); // ENTX 0
+    assert_eq!(mix_machine.poke_memory(7u16, Operation::make_instruction(true, 2u16, 0u8, 2u8, 47u8)), Ok(())); // JXP 2
+    assert_eq!(mix_machine.poke_memory(8u16, Operation::make_instruction(true, 5u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 5
+
+    assert_eq!(mix_machine.step(), Ok(())); // JXP 2 - should jump since X is positive
+    assert_eq!(mix_machine.step(), Ok(())); // ENNA 20
+    assert_eq!(mix_machine.peek_register(Register::RegA), Ok(20u32 + (1u32 << 30)));
+    assert_eq!(mix_machine.step(), Ok(())); // ENNX 20 (i.e. -20)
+    assert_eq!(mix_machine.step(), Ok(())); // JXP 6 - should not jump since X is negative
+    assert_eq!(mix_machine.step(), Ok(())); // ENTA 10
+    assert_eq!(mix_machine.peek_register(Register::RegA), Ok(10u32));
+    assert_eq!(mix_machine.step(), Ok(())); // ENTX 0
+    assert_eq!(mix_machine.peek_register(Register::RegX), Ok(0u32));
+    assert_eq!(mix_machine.step(), Ok(())); // JXP 2 - should not jump since X is zero
+    assert_eq!(mix_machine.step(), Ok(())); // ENTA 5
+    assert_eq!(mix_machine.peek_register(Register::RegA), Ok(5u32));
+}
+
+#[test]
+fn jump_i1_non_zero() {
+    let mut mix_machine = MixMachine::new();
+    assert_eq!(mix_machine.poke_register(Register::RegI1, 10u32), Ok(()));
+    assert_eq!(mix_machine.poke_memory(0u16, Operation::make_instruction(true, 2u16, 0u8, 4u8, 41u8)), Ok(())); // J1NZ 2
+    assert_eq!(mix_machine.poke_memory(1u16, Operation::make_instruction(true, 10u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 10
+    assert_eq!(mix_machine.poke_memory(2u16, Operation::make_instruction(true, 20u16, 0u8, 3u8, 48u8)), Ok(())); // ENNA 20
+    assert_eq!(mix_machine.poke_memory(3u16, Operation::make_instruction(true, 20u16, 0u8, 3u8, 49u8)), Ok(())); // ENN1 20
+    assert_eq!(mix_machine.poke_memory(4u16, Operation::make_instruction(true, 6u16, 0u8, 4u8, 41u8)), Ok(())); // J1NZ 6
+    assert_eq!(mix_machine.poke_memory(5u16, Operation::make_instruction(true, 10u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 10
+    assert_eq!(mix_machine.poke_memory(6u16, Operation::make_instruction(true, 0u16, 0u8, 2u8, 49u8)), Ok(())); // ENT1 0
+    assert_eq!(mix_machine.poke_memory(7u16, Operation::make_instruction(true, 2u16, 0u8, 4u8, 41u8)), Ok(())); // J1NZ 2
+    assert_eq!(mix_machine.poke_memory(8u16, Operation::make_instruction(true, 5u16, 0u8, 2u8, 48u8)), Ok(())); // ENTA 5
+
+    assert_eq!(mix_machine.step(), Ok(())); // J1NZ 2 - should jump since I1 is positive
+    assert_eq!(mix_machine.step(), Ok(())); // ENNA 20
+    assert_eq!(mix_machine.peek_register(Register::RegA), Ok(20u32 + (1u32 << 30)));
+    assert_eq!(mix_machine.step(), Ok(())); // ENN1 20 (i.e. -20)
+    assert_eq!(mix_machine.step(), Ok(())); // J1NZ 6 - should jump since I1 is negative
+    assert_eq!(mix_machine.step(), Ok(())); // ENT1 0
+    assert_eq!(mix_machine.peek_register(Register::RegI1), Ok(0u32));
+    assert_eq!(mix_machine.step(), Ok(())); // J1NZ 2 - should not jump since I1 is zero
+    assert_eq!(mix_machine.step(), Ok(())); // ENTA 5
+    assert_eq!(mix_machine.peek_register(Register::RegA), Ok(5u32));
+}

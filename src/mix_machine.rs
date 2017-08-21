@@ -406,40 +406,55 @@ impl MixMachine {
 
     fn execute_jump_op(&mut self, op: &JumpOp) -> Result<(), MixMachineErr> {
         let target = self.compute_effective_address(op.address, op.index_spec)?;
+        // Easier if we do this - lets us move JAN, JAE, etc. into same format as JL, JE, etc.
+        let adjusted_field = match op.register {
+            None => op.field,
+            Some(_) => op.field + 4,
+        };
+        let comp_state = match op.register {
+            None => self.peek_comparison_indicator(),
+            Some(reg) => {
+                let x = self.peek_register(reg).unwrap();
+                if x & ((1u32 << 30) - 1u32) == 0 {
+                    Ok(ComparisonState::Equal)  // Register holds +0 or -0
+                } else if x & (1u32 << 30) != 0 {
+                    Ok(ComparisonState::Less)   // Register holds a negative value
+                } else {
+                    Ok(ComparisonState::Greater)    // Register holds a positive value
+                }
+            },
+        };
         // Update rJ unless instruction was JSJ
-        if op.field != 1 {
+        if adjusted_field != 1 {
             // Recall that we *already* incremented after the instruction fetch
             let counter = self.program_counter as u32;
             self.poke_register(Register::RegJ, counter)?
         }
-        match op.field {
+        match adjusted_field {
             0 | 1 => { self.program_counter = target; },
             2 | 3 => { 
                 let overflow = self.peek_overflow_toggle()?;
-                if (op.field == 2 && overflow) || (op.field == 3 && !overflow) {
+                if (adjusted_field == 2 && overflow) || (adjusted_field == 3 && !overflow) {
                     self.program_counter = target;
                 }
                 if overflow { self.clear_overflow_toggle(); }
             },
-            4 => { if self.peek_comparison_indicator() == Ok(ComparisonState::Less) {
+            4 => { if comp_state == Ok(ComparisonState::Less) {
                     self.program_counter = target; }},
-            5 => { if self.peek_comparison_indicator() == Ok(ComparisonState::Equal) {
+            5 => { if comp_state == Ok(ComparisonState::Equal) {
                     self.program_counter = target; }},
-            6 => { if self.peek_comparison_indicator() == Ok(ComparisonState::Greater) {
+            6 => { if comp_state == Ok(ComparisonState::Greater) {
                     self.program_counter = target; }},
-            7 => { let c = self.peek_comparison_indicator();
-                   if c == Ok(ComparisonState::Greater) || c == Ok(ComparisonState::Equal) {
+            7 => { if comp_state == Ok(ComparisonState::Greater) || comp_state == Ok(ComparisonState::Equal) {
                        self.program_counter = target;
                    }},
-            8 => { let c = self.peek_comparison_indicator();
-                   if c == Ok(ComparisonState::Greater) || c == Ok(ComparisonState::Less) {
+            8 => { if comp_state == Ok(ComparisonState::Greater) || comp_state == Ok(ComparisonState::Less) {
                        self.program_counter = target;
                    }},
-            9 => { let c = self.peek_comparison_indicator();
-                   if c == Ok(ComparisonState::Less) || c == Ok(ComparisonState::Equal) {
+            9 => { if comp_state == Ok(ComparisonState::Less) || comp_state == Ok(ComparisonState::Equal) {
                        self.program_counter = target;
                    }},
-            _ => panic!("Invalid field spec in jump op. Should be impossible."),
+            _ => return Err(MixMachineErr {message : String::from("Invalid field spec in comparison operation")}),
         }
         Ok(())
     }

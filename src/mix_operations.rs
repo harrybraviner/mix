@@ -5,6 +5,7 @@ pub enum Operation {
     AddressTransfer(AddressOp),
     Comparison(CompOp),
     Jump(JumpOp),
+    Shift(ShiftOp),
     Unknown,
 }
 
@@ -61,6 +62,14 @@ pub struct JumpOp {
     pub field : u8,
 }
 
+pub struct ShiftOp {
+    pub use_reg_x : bool,
+    pub address : i16,
+    pub index_spec : u8,
+    pub shift_left : bool,  // If false, shift right
+    pub circulating_shift : bool,
+}
+
 impl Operation {
     pub fn from_u32(instruction: u32) -> Result<Operation, ()> {
         let op_code: u8    = ( instruction        % 64u32) as u8;
@@ -113,6 +122,7 @@ impl Operation {
             53 => Ok(AddressTransfer(AddressOp {register: RegI5, address: address, negative_address: negative_address, index_spec: index_spec,  negate_value: field_spec % 2u8 != 0u8, increase: field_spec / 2u8 == 0u8})),
             54 => Ok(AddressTransfer(AddressOp {register: RegI6, address: address, negative_address: negative_address, index_spec: index_spec,  negate_value: field_spec % 2u8 != 0u8, increase: field_spec / 2u8 == 0u8})),
             55 => Ok(AddressTransfer(AddressOp {register: RegX,  address: address, negative_address: negative_address, index_spec: index_spec,  negate_value: field_spec % 2u8 != 0u8, increase: field_spec / 2u8 == 0u8})),
+            // Comparison instructions
             56 => Ok(Comparison(CompOp {register : RegA,  field : field_spec, address: address, index_spec: index_spec})),
             57 => Ok(Comparison(CompOp {register : RegI1, field : field_spec, address: address, index_spec: index_spec})),
             58 => Ok(Comparison(CompOp {register : RegI2, field : field_spec, address: address, index_spec: index_spec})),
@@ -121,6 +131,7 @@ impl Operation {
             61 => Ok(Comparison(CompOp {register : RegI5, field : field_spec, address: address, index_spec: index_spec})),
             61 => Ok(Comparison(CompOp {register : RegI6, field : field_spec, address: address, index_spec: index_spec})),
             63 => Ok(Comparison(CompOp {register : RegX,  field : field_spec, address: address, index_spec: index_spec})),
+            // Jump instructions
             39 => Ok(Jump(JumpOp {register : None, address : address, index_spec : index_spec, field : field_spec})),
             40 => Ok(Jump(JumpOp {register : Some(Register::RegA), address : address, index_spec : index_spec, field : field_spec})),
             47 => Ok(Jump(JumpOp {register : Some(Register::RegX), address : address, index_spec : index_spec, field : field_spec})),
@@ -130,7 +141,8 @@ impl Operation {
             44 => Ok(Jump(JumpOp {register : Some(Register::RegI4), address : address, index_spec : index_spec, field : field_spec})),
             45 => Ok(Jump(JumpOp {register : Some(Register::RegI5), address : address, index_spec : index_spec, field : field_spec})),
             46 => Ok(Jump(JumpOp {register : Some(Register::RegI6), address : address, index_spec : index_spec, field : field_spec})),
-
+            // Shift instructions
+            6 => Ok(Shift(ShiftOp {use_reg_x : field_spec > 1, address : address, index_spec : index_spec, shift_left : field_spec % 2 == 0, circulating_shift : field_spec > 3})),
             // Unknown (or not implemented)
             _  => Err(())
         }

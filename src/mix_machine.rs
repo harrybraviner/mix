@@ -1,5 +1,6 @@
 use mix_operations::*;
 use mix_operations::Operation::*;
+use std::cmp::min;
 
 const MAX_WORD_VALUE: u32 = (1 << 31) - 1;
 const MEM_SIZE: u16 = 4000;
@@ -459,6 +460,77 @@ impl MixMachine {
         Ok(())
     }
 
+    fn safe_shift_with_masking(x : u32, shift_bytes : u16, shift_left : bool) -> u32 {
+        if shift_bytes < 5 {
+            let shift_distance = shift_bytes*6;
+            if shift_left {
+                (x << shift_distance) & ((1u32 << 30) - 1u32)
+            } else {
+                x >> shift_distance
+            }
+        } else {
+            0u32
+        }
+    }
+
+    fn execute_shift_op(&mut self, op : &ShiftOp) -> Result<(), MixMachineErr> {
+        let reg_a = self.peek_register(Register::RegA).unwrap();
+        let shift_distance = self.compute_effective_address(op.address, op.index_spec)?;
+        let (shift_distance, shift_left) =
+            if op.circulating_shift {
+                // Trick to make sure the we never have to deal with bytes of rA circulating all the
+                // way back into rA again.
+                if shift_distance % 10 == 0 {
+                    (0, true)
+                } else if (shift_distance % 10 - 1) / 5 == 0 {
+                    ((shift_distance % 10), op.shift_left)
+                } else {
+                    ((10 - (shift_distance % 10)), !op.shift_left)
+                }
+            } else {
+                (shift_distance, op.shift_left)
+            };
+        //panic!("SD: {}, SL: {}", shift_distance, shift_left);
+        let sign_a = self.peek_register(Register::RegA).unwrap() & (1u32 << 30);
+        let sign_x = self.peek_register(Register::RegX).unwrap() & (1u32 << 30);
+        let bytes_a = self.peek_register(Register::RegA).unwrap() & ((1u32 << 30) - 1u32);
+        let bytes_x = self.peek_register(Register::RegX).unwrap() & ((1u32 << 30) - 1u32);
+        let mut new_bytes_a = MixMachine::safe_shift_with_masking(bytes_a, shift_distance, shift_left);
+        if op.use_reg_x {
+            let mut new_bytes_x = MixMachine::safe_shift_with_masking(bytes_x, shift_distance, shift_left);
+
+            // This part is common to circulating and non-circulating shifts
+            if shift_left {
+                if shift_distance <= 5 {
+                    new_bytes_a = new_bytes_a | MixMachine::safe_shift_with_masking(bytes_x, (5 - shift_distance), false);
+                } else {
+                    new_bytes_a = MixMachine::safe_shift_with_masking(bytes_x, (shift_distance - 5), true);
+                }
+            } else {
+                if shift_distance <= 5 {
+                    new_bytes_x = new_bytes_x | ((bytes_a & ((1u32 << 6*shift_distance) - 1)) << (6*(5 - shift_distance)));
+                } else {
+                    new_bytes_x = bytes_a >> (6*(shift_distance - 5));
+                }
+            }
+
+            if op.circulating_shift {
+                if shift_left {
+                    new_bytes_x = new_bytes_x | MixMachine::safe_shift_with_masking(bytes_a, (5 - shift_distance), false);
+                } else {
+                    new_bytes_a = new_bytes_a | MixMachine::safe_shift_with_masking(bytes_x, (5 - shift_distance), true);
+                }
+            }
+
+            new_bytes_x = new_bytes_x | sign_x;
+            self.poke_register(Register::RegX, new_bytes_x);
+        }
+        new_bytes_a = new_bytes_a | sign_a;
+        self.poke_register(Register::RegA, new_bytes_a);
+        // FIXME - this bit very much not finished!!!
+        Ok(())
+    }
+
     pub fn step(&mut self) -> Result<(), MixMachineErr> {
         // Try instruction fetch
         let instruction =
@@ -479,6 +551,7 @@ impl MixMachine {
                 AddressTransfer(op) => self.execute_address_transfer(&op),
                 Comparison(op) => self.execute_comparison_op(&op),
                 Jump(op) => self.execute_jump_op(&op),
+                Shift(op) => self.execute_shift_op(&op),
                 _         => panic!("Not implemented."),
             }
         })

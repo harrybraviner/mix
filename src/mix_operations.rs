@@ -7,6 +7,7 @@ pub enum Operation {
     Jump(JumpOp),
     Shift(ShiftOp),
     Move(MoveOp),
+    NoOp,
     Unknown,
 }
 
@@ -151,6 +152,7 @@ impl Operation {
             // Shift instructions
             6 => Ok(Shift(ShiftOp {use_reg_x : field_spec > 1, address : address, index_spec : index_spec, shift_left : field_spec % 2 == 0, circulating_shift : field_spec > 3})),
             7 => Ok(Move(MoveOp {address : address, index_spec : index_spec, num_to_move : field_spec as u16})),
+            0 => Ok(NoOp),
             // Unknown (or not implemented)
             _  => Err(())
         }

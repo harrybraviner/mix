@@ -567,6 +567,7 @@ impl MixMachine {
                 Jump(op) => self.execute_jump_op(&op),
                 Shift(op) => self.execute_shift_op(&op),
                 Move(op) => self.execute_move_op(&op),
+                NoOp => Ok(()),
                 _         => panic!("Not implemented."),
             }
         })

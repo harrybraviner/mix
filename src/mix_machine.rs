@@ -527,8 +527,22 @@ impl MixMachine {
         }
         new_bytes_a = new_bytes_a | sign_a;
         self.poke_register(Register::RegA, new_bytes_a);
-        // FIXME - this bit very much not finished!!!
         Ok(())
+    }
+
+    pub fn execute_move_op(&mut self, op : &MoveOp) -> Result<(), MixMachineErr> {
+        let source_start = self.compute_effective_address(op.address, op.index_spec)?;
+        let dest_start = self.peek_register(Register::RegI1)?;
+        if ((source_start as u16) + op.num_to_move) >= MEM_SIZE || ((dest_start as u16) + op.num_to_move) >= MEM_SIZE {
+            Err(MixMachineErr { message : String::from("Attempting to move from invalid address.") })
+        } else {
+            for i in 0..op.num_to_move {
+                let x = self.peek_memory(source_start + i).unwrap();
+                self.poke_memory((dest_start as u16) + i, x)?;
+            }
+            self.poke_register(Register::RegI1, dest_start + (op.num_to_move as u32));
+            Ok(())
+        }
     }
 
     pub fn step(&mut self) -> Result<(), MixMachineErr> {
@@ -552,6 +566,7 @@ impl MixMachine {
                 Comparison(op) => self.execute_comparison_op(&op),
                 Jump(op) => self.execute_jump_op(&op),
                 Shift(op) => self.execute_shift_op(&op),
+                Move(op) => self.execute_move_op(&op),
                 _         => panic!("Not implemented."),
             }
         })

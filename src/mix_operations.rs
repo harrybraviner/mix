@@ -6,6 +6,7 @@ pub enum Operation {
     Comparison(CompOp),
     Jump(JumpOp),
     Shift(ShiftOp),
+    Move(MoveOp),
     Unknown,
 }
 
@@ -68,6 +69,12 @@ pub struct ShiftOp {
     pub index_spec : u8,
     pub shift_left : bool,  // If false, shift right
     pub circulating_shift : bool,
+}
+
+pub struct MoveOp {
+    pub address : i16,
+    pub index_spec : u8,
+    pub num_to_move : u16,
 }
 
 impl Operation {
@@ -143,6 +150,7 @@ impl Operation {
             46 => Ok(Jump(JumpOp {register : Some(Register::RegI6), address : address, index_spec : index_spec, field : field_spec})),
             // Shift instructions
             6 => Ok(Shift(ShiftOp {use_reg_x : field_spec > 1, address : address, index_spec : index_spec, shift_left : field_spec % 2 == 0, circulating_shift : field_spec > 3})),
+            7 => Ok(Move(MoveOp {address : address, index_spec : index_spec, num_to_move : field_spec as u16})),
             // Unknown (or not implemented)
             _  => Err(())
         }
